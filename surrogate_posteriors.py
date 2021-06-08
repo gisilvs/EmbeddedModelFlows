@@ -17,6 +17,23 @@ stdnormal_bijector_fns = {
     tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
 }
 
+def _get_prior_matching_bijectors_and_event_dims(prior):
+  event_shape = prior.event_shape_tensor()
+  flat_event_shape = tf.nest.flatten(event_shape)
+  flat_event_size = tf.nest.map_structure(tf.reduce_prod, flat_event_shape)
+  event_space_bijector = prior.experimental_default_event_space_bijector()
+
+  split_bijector = tfb.Split(flat_event_size)
+  unflatten_bijector = tfb.Restructure(
+    tf.nest.pack_sequence_as(
+      event_shape, range(len(flat_event_shape))))
+  reshape_bijector = tfb.JointMap(
+    tf.nest.map_structure(tfb.Reshape, flat_event_shape))
+
+  prior_matching_bijectors = [event_space_bijector, unflatten_bijector, reshape_bijector, split_bijector]
+
+  return event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors
+
 def _bijector_from_stdnormal(dist):
   fn = stdnormal_bijector_fns[type(dist)]
   return fn(dist)
@@ -32,27 +49,34 @@ def _mean_field(prior):
   return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='diag')
 
 def _multivariate_normal(prior):
-  event_shape = prior.event_shape_tensor()
-  return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='tril')
+  '''event_shape = prior.event_shape_tensor()
+  return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='tril')'''
+  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
+  dims = int(tf.reduce_sum(flat_event_size))
+  mvn = tfd.MultivariateNormalTriL(
+    loc=tf.Variable(tf.zeros([dims], dtype=tf.float32), name="mu"),
+    scale_tril=tfp.util.TransformedVariable(
+      tf.eye(dims, dtype=tf.float32),
+      tfp.bijectors.FillScaleTriL(),
+      name="raw_scale_tril"))
+
+  mvn_surrogate_posterior = tfd.TransformedDistribution(
+    distribution=mvn,
+    bijector=tfb.Chain(prior_matching_bijectors)
+  )
+
+  return mvn_surrogate_posterior
 
 def _asvi(prior):
   return tfe.vi.build_asvi_surrogate_posterior(prior)
 
 def _normalizing_flows(prior, flow_name, flow_params):
-  event_shape = prior.event_shape_tensor()
-  flat_event_shape = tf.nest.flatten(event_shape)
-  flat_event_size = tf.nest.map_structure(tf.reduce_prod, flat_event_shape)
-  event_space_bijector = prior.experimental_default_event_space_bijector()
+
+  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(prior)
 
   base_distribution = tfd.Sample(
     tfd.Normal(0., 1.), sample_shape=[tf.reduce_sum(flat_event_size)])
-
-  split = tfb.Split(flat_event_size)
-  unflatten_bijector = tfb.Restructure(
-    tf.nest.pack_sequence_as(
-      event_shape, range(len(flat_event_shape))))
-  reshape_bijector = tfb.JointMap(
-    tf.nest.map_structure(tfb.Reshape, flat_event_shape))
 
   if flow_name=='iaf':
     flow_bijector = build_iaf_biector(**flow_params)
@@ -63,14 +87,7 @@ def _normalizing_flows(prior, flow_name, flow_params):
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
-    bijector=tfb.Chain([
-                         event_space_bijector,
-                         # constrain the surrogate to the support of the prior
-                         unflatten_bijector,
-                         # pack the reshaped components into the `event_shape` structure of the prior
-                         reshape_bijector,
-                         # reshape the vector-valued components to match the shapes of the prior components
-                         split] +  # Split the samples into components of the same size as the prior components
+    bijector=tfb.Chain(prior_matching_bijectors +
                        flow_bijector
                        # Apply a flow model to the Tensor-valued standard Normal distribution
                        ))
