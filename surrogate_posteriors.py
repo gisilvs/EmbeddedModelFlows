@@ -102,14 +102,14 @@ def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None)
 
   elif surrogate_posterior_name == "small_iaf":
     flow_params = {
-      'num_iaf':2,
+      'num_iafs':2,
       'hidden_units':8
     }
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
   elif surrogate_posterior_name == "large_iaf":
     flow_params = {
-      'num_iaf': 2,
+      'num_iafs': 2,
       'hidden_units': 512
     }
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
