@@ -54,7 +54,7 @@ def _eight_schools():
 
 def _radon():
 
-  '''dataset = tfds.as_numpy(
+  dataset = tfds.as_numpy(
     tfds.load('radon', split='train').filter(
       lambda x: x['features']['state'] == 'MN').batch(10 ** 9))
 
@@ -112,21 +112,9 @@ def _radon():
 
     # Pin the observed `log_radon` values to model the un-normalized posterior.
 
-  target_model = model.experimental_pin(log_radon=log_radon)'''
-  # todo: is minnesota the one used in asvi paper?
-  model = gym.targets.RadonContextualEffectsMinnesota(dtype=tf.float32)
-  prior = model.prior_distribution()
-  ground_truth = model.sample_transformations['identity'].ground_truth_mean
-  def target_log_prob(county_effect_mean, county_effect_scale, county_effect, weight, log_radon_scale):
-    samples_as_dict = {'county_effect_mean': county_effect_mean,
-                       'county_effect_scale': county_effect_scale,
-                       'county_effect': county_effect,
-                       'weight': weight,
-                       'log_radon_scale': log_radon_scale
-       }
-    return model.log_likelihood(samples_as_dict) + prior.log_prob(samples_as_dict)
-  # todo: do we have observations in this model?
-  return model, prior, ground_truth, target_log_prob, None
+  target_model = model.experimental_pin(log_radon=log_radon)
+
+  return None, target_model, None, target_model.unnormalized_log_prob, log_radon
 
 def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link):
   @tfd.JointDistributionCoroutineAutoBatched
