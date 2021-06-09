@@ -62,7 +62,7 @@ def build_highway_flow_bijector_without_gating(num_layers, width, seed=None):
       build_trainable_thighway_flow_without_gating(width,
                                    activation_fn=tf.nn.softplus,seed=seed))
   bijectors.append(
-    build_trainable_highway_flow(width,
+    build_trainable_thighway_flow_without_gating(width,
                                  activation_fn=None,seed=seed))
 
   return bijectors
