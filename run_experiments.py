@@ -42,15 +42,19 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
 
 if not os.path.exists('results'):
   os.makedirs('results')
-model_names = ['brownian_bridge', 'lorenz_bridge', 'eight_schools', 'radon',
+
+#todo: test more radon
+model_names = ['brownian_bridge', 'lorenz_bridge', 'eight_schools',
                'linear_binary_tree_small', 'linear_binary_tree_large',
                'tanh_binary_tree_small', 'tanh_binary_tree_large']
-surrogate_posterior_names = ['mean_field', 'multivariate_normal', 'asvi',
-                             'small_iaf', 'large_iaf', 'highway_flow',
+
+#todo: add asvi, for now is too slow
+surrogate_posterior_names = ['mean_field', 'multivariate_normal',
+                             'small_iaf', 'large_iaf', 'highway_flow_no_gating',
                              'normalizing_program']
 
 backbone_names = ['mean_field', 'multivariate_normal', 'large_iaf',
-                  'highway_flow']
+                  'highway_flow', 'highway_flow_no_gating']
 
 for i in range(10):
   for model_name in model_names:
