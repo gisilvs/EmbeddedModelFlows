@@ -6,6 +6,7 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 tfe = tfp.experimental
 
+# todo: broken with radon, probably need to fix sample and/or independent
 stdnormal_bijector_fns = {
     tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration, d._rate_parameter()),
     tfd.Normal: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
@@ -45,8 +46,21 @@ class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
     return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
 
 def _mean_field(prior):
-  event_shape = prior.event_shape_tensor()
-  return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='diag')
+  '''event_shape = prior.event_shape_tensor()
+    return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='diag')'''
+  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
+  dims = int(tf.reduce_sum(flat_event_size))
+  trainable_dist = tfd.Independent(tfd.Normal(loc=tf.Variable(tf.zeros(dims)),
+                         scale=tfp.util.TransformedVariable(tf.ones(dims), bijector=tfb.Softplus())), 1)
+
+  mean_field_surrogate_posterior = tfd.TransformedDistribution(
+    distribution=trainable_dist,
+    bijector=tfb.Chain(prior_matching_bijectors)
+  )
+
+  return mean_field_surrogate_posterior
+
 
 def _multivariate_normal(prior):
   '''event_shape = prior.event_shape_tensor()
