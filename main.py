@@ -6,7 +6,7 @@ from surrogate_posteriors import get_surrogate_posterior
 from metrics import negative_elbo, forward_kl
 
 model_name = 'eight_schools'
-surrogate_posterior_name = 'normalizing_program'
+surrogate_posterior_name = 'highway_flow_no_gating'
 backbone_posterior_name= 'multivariate_normal'
 
 model, prior, ground_truth, target_log_prob, observations = get_model(model_name)

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
-from flows_bijectors import build_highway_flow_bijector, build_iaf_biector
+from flows_bijectors import build_highway_flow_bijector, build_iaf_biector, \
+  build_highway_flow_bijector_without_gating
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -98,6 +99,10 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
     flow_params['gate_first_n'] = flow_params['width']
     flow_bijector = build_highway_flow_bijector(**flow_params)
+  elif flow_name=='highway_flow_no_gating':
+    flow_params['width'] = int(tf.reduce_sum(flat_event_size))
+    flow_bijector = build_highway_flow_bijector_without_gating(**flow_params)
+
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
@@ -151,6 +156,12 @@ def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None)
       'residual_fraction_initial_value':0.98
     }
     return _normalizing_flows(prior, flow_name='highway_flow', flow_params=flow_params)
+
+  elif surrogate_posterior_name == "highway_flow_no_gating":
+    flow_params = {
+      'num_layers': 3,
+    }
+    return _normalizing_flows(prior, flow_name='highway_flow_no_gating', flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
     return _normalizing_program(prior, backbone_name=backnone_name)
