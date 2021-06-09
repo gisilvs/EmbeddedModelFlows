@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 def negative_elbo(target_log_prob, surrogate_posterior, num_smaples, model_name):
-  samples = surrogate_posterior.sample(num_smaples)
+  samples = surrogate_posterior.sample(num_smaples, seed=45)
   if model_name == 'eight_schools':
     return - tf.reduce_mean(target_log_prob(**samples) - surrogate_posterior.log_prob(samples))
   else:
