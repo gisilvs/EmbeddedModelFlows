@@ -18,6 +18,16 @@ stdnormal_bijector_fns = {
     tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
 }
 
+def _bijector_from_stdnormal(dist):
+  fn = stdnormal_bijector_fns[type(dist)]
+  return fn(dist)
+
+
+class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
+
+  def __init__(self, dist):
+    return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
+
 def _get_prior_matching_bijectors_and_event_dims(prior):
   event_shape = prior.event_shape_tensor()
   flat_event_shape = tf.nest.flatten(event_shape)
@@ -34,16 +44,6 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
   prior_matching_bijectors = [event_space_bijector, unflatten_bijector, reshape_bijector, split_bijector]
 
   return event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors
-
-def _bijector_from_stdnormal(dist):
-  fn = stdnormal_bijector_fns[type(dist)]
-  return fn(dist)
-
-
-class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
-
-  def __init__(self, dist):
-    return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
 
 def _mean_field(prior):
   '''event_shape = prior.event_shape_tensor()
