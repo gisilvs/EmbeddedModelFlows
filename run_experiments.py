@@ -52,7 +52,7 @@ surrogate_posterior_names = ['mean_field', 'multivariate_normal', 'asvi',
 backbone_names = ['mean_field', 'multivariate_normal', 'large_iaf',
                   'highway_flow']
 
-for i in range(2):
+for i in range(10):
   for model_name in model_names:
     model, prior, ground_truth, target_log_prob, observations = get_model(
       model_name)
