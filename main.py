@@ -7,7 +7,7 @@ from metrics import negative_elbo, forward_kl
 
 model_name = 'eight_schools'
 surrogate_posterior_name = 'normalizing_program'
-backbone_posterior_name= 'highway_flow'
+backbone_posterior_name= 'multivariate_normal'
 
 model, prior, ground_truth, target_log_prob, observations = get_model(model_name)
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
@@ -19,4 +19,5 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         sample_size=10)
 
 print(f'ELBO: {negative_elbo(target_log_prob, surrogate_posterior, num_smaples=15, model_name=model_name)}')
-print(f'FORWARD_KL: {forward_kl(surrogate_posterior, ground_truth)}')
+if model_name!='radon':
+  print(f'FORWARD_KL: {forward_kl(surrogate_posterior, ground_truth)}')
