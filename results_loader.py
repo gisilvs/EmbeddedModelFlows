@@ -1,6 +1,49 @@
+import os
 import pickle
+import pandas as pd
+from scipy.stats import sem
+import numpy as np
 
-with open('results/brownian_bridge/asvi/rep0.pickle', 'rb') as handle:
-  b = pickle.load(handle)
+sps = ['mean_field',
+       'multivariate_normal',
+       'small_iaf',
+       'large_iaf',
+       'normalizing_program_mean_field',
+       'normalizing_program_multivariate_normal',
+       'normalizing_program_large_iaf',
+       'normalizing_program_highway_flow']
+root_dir='results'
+results_dict = {}
 
-a = 0
+for model in os.listdir(root_dir):
+  model_dir=f'{root_dir}/{model}'
+  results_dict[model] = {}
+  for surrogate_posterior in os.listdir(model_dir):
+    results_dict[model][surrogate_posterior]={}
+    surrogate_posterior_dir = f'{model_dir}/{surrogate_posterior}'
+    reps = []
+    for rep in os.listdir(surrogate_posterior_dir):
+      with open(f'{surrogate_posterior_dir}/{rep}', 'rb') as handle:
+        reps.append(pickle.load(handle))
+
+    df = pd.DataFrame(reps)
+    results_dict[model][surrogate_posterior]['elbo']= df.elbo
+    results_dict[model][surrogate_posterior]['fkl'] = df.fkl
+
+for k, models in results_dict.items():
+    print(f'{k}')
+
+    print("& ELBO")
+    for surrogate_posterior in sps:
+      f = ''
+      f += f' & {models[surrogate_posterior]["elbo"].mean():.3f} $\\pm$ {models[surrogate_posterior]["elbo"].sem():.3f}'
+      f += f"\\\\\n"
+      print(f)
+
+    print("& FKL")
+    for surrogate_posterior in sps:
+      f = ''
+      f += f' & {models[surrogate_posterior]["fkl"].mean():.3f} $\\pm$ {models[surrogate_posterior]["fkl"].sem():.3f}'
+      f += f"\\\\\n"
+      print(f)
+
