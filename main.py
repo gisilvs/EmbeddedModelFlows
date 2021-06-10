@@ -15,7 +15,7 @@ surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, b
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.optimizers.Adam(learning_rate=1e-2),
-                                        num_steps=50,
+                                        num_steps=1000,
                                         sample_size=10)
 
 print(f'ELBO: {negative_elbo(target_log_prob, surrogate_posterior, num_smaples=15, model_name=model_name)}')
