@@ -19,7 +19,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(
                                             learning_rate=1e-3),
-                                          num_steps=100000,
+                                          num_steps=5,
                                           sample_size=50)
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
                        model_name=model_name, seed=seed)
