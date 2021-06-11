@@ -4,14 +4,16 @@ import pandas as pd
 from scipy.stats import sem
 import numpy as np
 
-sps = ['mean_field',
+'''sps = ['mean_field',
        'multivariate_normal',
        'small_iaf',
        'large_iaf',
        'normalizing_program_mean_field',
        'normalizing_program_multivariate_normal',
        'normalizing_program_large_iaf',
-       'normalizing_program_highway_flow']
+       'normalizing_program_highway_flow']'''
+
+sps = ['highway_flow_no_gating', 'normalizing_program_highway_flow_no_gating']
 root_dir='results'
 results_dict = {}
 
@@ -36,14 +38,13 @@ for k, models in results_dict.items():
     print("& ELBO")
     for surrogate_posterior in sps:
       f = ''
-      f += f' & {models[surrogate_posterior]["elbo"].mean():.3f} $\\pm$ {models[surrogate_posterior]["elbo"].sem():.3f}'
-      f += f"\\\\\n"
+      f += f' & ${models[surrogate_posterior]["elbo"].mean():.3f} \\pm {models[surrogate_posterior]["elbo"].sem():.3f}$'
       print(f)
 
     print("& FKL")
     for surrogate_posterior in sps:
       f = ''
-      f += f' & {models[surrogate_posterior]["fkl"].mean():.3f} $\\pm$ {models[surrogate_posterior]["fkl"].sem():.3f}'
-      f += f"\\\\\n"
+      f += f' & ${models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}$'
       print(f)
+
 
