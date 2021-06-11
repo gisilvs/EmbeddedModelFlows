@@ -59,22 +59,7 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
 
 
 def _mean_field(prior):
-  '''event_shape = prior.event_shape_tensor()
-    return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='diag')'''
-  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
-    prior)
-  dims = int(tf.reduce_sum(flat_event_size))
-  trainable_dist = tfd.Independent(tfd.Normal(loc=tf.Variable(tf.zeros(dims)),
-                                              scale=tfp.util.TransformedVariable(
-                                                tf.ones(dims),
-                                                bijector=tfb.Softplus())), 1)
-
-  mean_field_surrogate_posterior = tfd.TransformedDistribution(
-    distribution=trainable_dist,
-    bijector=tfb.Chain(prior_matching_bijectors)
-  )
-
-  return mean_field_surrogate_posterior
+  return tfe.vi.build_asvi_surrogate_posterior(prior, mean_field=True)
 
 
 def _multivariate_normal(prior):
