@@ -57,3 +57,35 @@ def build_iaf_bijector(num_hidden_units,
     iaf_bijector.extend([make_swap(), make_maf()])
 
   return iaf_bijector
+
+'''def build_real_nvp_bijector(num_hidden_units,
+                       ndims,
+                       dtype,
+                       num_flow_layers=2):
+  make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
+
+  def make_maf():
+    net = tfb.AutoregressiveNetwork(
+      2,
+      hidden_units=[num_hidden_units, num_hidden_units],
+      activation=tf.tanh,
+      dtype=dtype)
+
+    maf = tfb.MaskedAutoregressiveFlow(
+      bijector_fn=lambda x: tfb.Chain(
+        [tfb.Shift(net(x)[Ellipsis, 0]),  # pylint: disable=g-long-lambda
+         tfb.Scale(log_scale=net(x)[Ellipsis, 1])]))
+
+    maf = tfb.Invert(maf)
+    # To track the variables
+    maf._net = net  # pylint: disable=protected-access
+    return maf
+  
+  real_nvp_bijector = tfb.RealNvp()
+
+  iaf_bijector = [make_maf()]
+
+  for _ in range(num_flow_layers - 1):
+    iaf_bijector.extend([make_swap(), make_maf()])
+
+  return iaf_bijector'''
