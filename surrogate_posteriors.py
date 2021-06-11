@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_highway_flow_bijector, build_iaf_biector
+from flows_bijectors import build_highway_flow_bijector, build_iaf_bijector
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -86,10 +86,10 @@ def _multivariate_normal(prior):
     tfd.Normal(tf.zeros([], dtype), 1.), sample_shape=[ndims])
   op = make_trainable_linear_operator_tril(ndims)
 
-  bijectors = prior_matching_bijectors.extend([tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
+  prior_matching_bijectors.extend([tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
     tfb.ScaleMatvecLinearOperator(op)])
 
-  return tfd.TransformedDistribution(base_dist, tfb.Chain(bijectors))
+  return tfd.TransformedDistribution(base_dist, tfb.Chain(prior_matching_bijectors))
 
 
 def _asvi(prior):
@@ -106,7 +106,7 @@ def _normalizing_flows(prior, flow_name, flow_params):
   if flow_name == 'iaf':
     flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
-    flow_bijector = build_iaf_biector(**flow_params)
+    flow_bijector = build_iaf_bijector(**flow_params)
   elif flow_name == 'highway_flow':
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
     flow_params['gate_first_n'] = flow_params['width']
@@ -148,8 +148,8 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "iaf":
     flow_params = {
-      'num_iafs': 2,
-      'hidden_units': 512
+      'num_flow_layers': 2,
+      'num_hidden_units': 512
     }
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
