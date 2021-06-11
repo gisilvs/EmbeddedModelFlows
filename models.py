@@ -12,11 +12,12 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 Root = tfd.JointDistributionCoroutine.Root
 
-def _brownian_bridge_regression(seed=None):
+def _brownian_motion(is_bridge, is_classification, seed=None):
   @tfd.JointDistributionCoroutineAutoBatched
   def model():
     innovation_noise= .1
     observation_noise = .15
+    k = 5.
     truth = []
     new = yield Root(tfd.Normal(loc=0.,
                                 scale=innovation_noise,
@@ -28,38 +29,17 @@ def _brownian_bridge_regression(seed=None):
                              scale=innovation_noise,
                              name=f'x_{t}')
       truth.append(new)
-
-    for t in range(30):
-      if t<10 or t>19:
+    if is_bridge:
+      time_steps = list(range(10)) + list(range(20,30))
+    else:
+      time_steps = range(30)
+    for t in time_steps:
+      if is_classification:
+        yield tfd.Bernoulli(logits=k * truth[t], name=f'y_{t}')
+      else:
         yield tfd.Normal(loc=truth[t],
                          scale=observation_noise,
                          name=f'y_{t}')
-
-  ground_truth = model.sample(seed=seed)
-  brownian_bridge = model.experimental_pin(ground_truth[30:])
-
-  return brownian_bridge, ground_truth[:30], brownian_bridge.unnormalized_log_prob, ground_truth[30:]
-
-def _brownian_bridge_classification(seed=None):
-  @tfd.JointDistributionCoroutineAutoBatched
-  def model():
-    innovation_noise= .1
-    truth = []
-    k = 20
-    new = yield Root(tfd.Normal(loc=0.,
-                                scale=innovation_noise,
-                                name='x_0'))
-    truth.append(new)
-
-    for t in range(1, 30):
-      new = yield tfd.Normal(loc=new,
-                             scale=innovation_noise,
-                             name=f'x_{t}')
-      truth.append(new)
-
-    for t in range(30):
-      if t<10 or t>19:
-        yield tfd.Bernoulli(logits=k*truth[t], name=f'y_{t}')
 
   ground_truth = model.sample(seed=seed)
   brownian_bridge = model.experimental_pin(ground_truth[30:])
@@ -236,11 +216,18 @@ def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link,
   return model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
 def get_model(model_name, seed=None):
+
+  if model_name=='brownian_smoothing_r':
+    return _brownian_motion(is_bridge=False, is_classification=False, seed=seed)
+
+  elif model_name=='brownian_smoothing_c':
+    return _brownian_motion(is_bridge=False, is_classification=True, seed=seed)
+
   if model_name=='brownian_bridge_r':
-    return _brownian_bridge_regression(seed)
+    return _brownian_motion(is_bridge=True, is_classification=False, seed=seed)
 
   elif model_name=='brownian_bridge_c':
-    return _brownian_bridge_classification(seed)
+    return _brownian_motion(is_bridge=True, is_classification=True, seed=seed)
 
   elif model_name=='lorenz_bridge_r':
     return _lorenz_bridge_regression(seed)
