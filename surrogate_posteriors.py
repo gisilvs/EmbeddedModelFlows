@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
-from flows_bijectors import build_highway_flow_bijector, build_iaf_biector, \
-  build_highway_flow_bijector_without_gating
+from flows_bijectors import build_highway_flow_bijector, build_iaf_biector
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -44,7 +43,9 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
 
   prior_matching_bijectors = [event_space_bijector, unflatten_bijector, reshape_bijector, split_bijector]
 
-  return event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors
+  dtype = tf.nest.flatten(prior.dtype)[0]
+
+  return event_shape, flat_event_shape, flat_event_size, int(tf.reduce_sum(flat_event_size)), dtype, prior_matching_bijectors
 
 def _mean_field(prior):
   '''event_shape = prior.event_shape_tensor()
@@ -88,27 +89,29 @@ def _asvi(prior):
 
 def _normalizing_flows(prior, flow_name, flow_params):
 
-  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(prior)
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(prior)
 
   base_distribution = tfd.Sample(
-    tfd.Normal(0., 1.), sample_shape=[tf.reduce_sum(flat_event_size)])
+      tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
 
   if flow_name=='iaf':
+    flow_params['dtype'] = dtype
+    flow_params['ndims'] = ndims
     flow_bijector = build_iaf_biector(**flow_params)
   elif flow_name=='highway_flow':
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
     flow_params['gate_first_n'] = flow_params['width']
-    flow_bijector = build_highway_flow_bijector(**flow_params)
+    flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
   elif flow_name=='highway_flow_no_gating':
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
-    flow_bijector = build_highway_flow_bijector_without_gating(**flow_params)
+    flow_params['gate_first_n'] = 0
+    flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
 
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
     bijector=tfb.Chain(prior_matching_bijectors +
                        flow_bijector
-                       # Apply a flow model to the Tensor-valued standard Normal distribution
                        ))
 
   return nf_surrogate_posterior
@@ -123,8 +126,6 @@ def _normalizing_program(prior, backbone_name):
   )
 
 
-
-
 def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None):
 
   if surrogate_posterior_name == 'mean_field':
@@ -136,14 +137,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None)
   elif surrogate_posterior_name == "asvi":
     return _asvi(prior)
 
-  elif surrogate_posterior_name == "small_iaf":
-    flow_params = {
-      'num_iafs':2,
-      'hidden_units':8
-    }
-    return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
-
-  elif surrogate_posterior_name == "large_iaf":
+  elif surrogate_posterior_name == "iaf":
     flow_params = {
       'num_iafs': 2,
       'hidden_units': 512
@@ -160,6 +154,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None)
   elif surrogate_posterior_name == "highway_flow_no_gating":
     flow_params = {
       'num_layers': 3,
+      'residual_fraction_initial_value': 0.5
     }
     return _normalizing_flows(prior, flow_name='highway_flow_no_gating', flow_params=flow_params)
 
