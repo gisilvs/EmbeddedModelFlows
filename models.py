@@ -2,7 +2,9 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import tensorflow_datasets as tfds
 from inference_gym import using_tensorflow as gym
-from inference_gym.internal.datasets import brownian_motion_missing_middle_observations, convection_lorenz_bridge
+from inference_gym.internal.datasets import  convection_lorenz_bridge
+
+import matplotlib.pyplot as plt
 
 import numpy as np
 
@@ -10,15 +12,59 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 Root = tfd.JointDistributionCoroutine.Root
 
-def _brownian_bridge():
-  model = gym.targets.BrownianMotionMissingMiddleObservations()
-  prior = model.prior_distribution()
-  ground_truth = model.sample_transformations['identity'].ground_truth_mean
-  target_log_prob = lambda *values: model.log_likelihood(values) + \
-                                    prior.log_prob(values)
-  OBSERVED_LOC = brownian_motion_missing_middle_observations.OBSERVED_LOC
+def _brownian_bridge_regression(seed=None):
+  @tfd.JointDistributionCoroutineAutoBatched
+  def model():
+    innovation_noise= .1
+    observation_noise = .15
+    truth = []
+    new = yield Root(tfd.Normal(loc=0.,
+                                scale=innovation_noise,
+                                name='x_0'))
+    truth.append(new)
 
-  return model, prior, ground_truth, target_log_prob, OBSERVED_LOC
+    for t in range(1, 30):
+      new = yield tfd.Normal(loc=new,
+                             scale=innovation_noise,
+                             name=f'x_{t}')
+      truth.append(new)
+
+    for t in range(30):
+      if t<10 or t>19:
+        yield tfd.Normal(loc=truth[t],
+                         scale=observation_noise,
+                         name=f'y_{t}')
+
+  ground_truth = model.sample(seed=seed)
+  brownian_bridge = model.experimental_pin(ground_truth[30:])
+
+  return brownian_bridge, ground_truth[:30], brownian_bridge.unnormalized_log_prob, ground_truth[30:]
+
+def _brownian_bridge_classification(seed=None):
+  @tfd.JointDistributionCoroutineAutoBatched
+  def model():
+    innovation_noise= .1
+    truth = []
+    k = 20
+    new = yield Root(tfd.Normal(loc=0.,
+                                scale=innovation_noise,
+                                name='x_0'))
+    truth.append(new)
+
+    for t in range(1, 30):
+      new = yield tfd.Normal(loc=new,
+                             scale=innovation_noise,
+                             name=f'x_{t}')
+      truth.append(new)
+
+    for t in range(30):
+      if t<10 or t>19:
+        yield tfd.Bernoulli(logits=k*truth[t])
+
+  ground_truth = model.sample(seed=seed)
+  brownian_bridge = model.experimental_pin(ground_truth[30:])
+
+  return brownian_bridge, ground_truth[:30], brownian_bridge.unnormalized_log_prob, ground_truth[30:]
 
 def _lorenz_bridge():
   model = gym.targets.ConvectionLorenzBridge()
@@ -136,9 +182,12 @@ def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link)
 
   return None, model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
-def get_model(model_name):
-  if model_name=='brownian_bridge':
-    return _brownian_bridge()
+def get_model(model_name, seed=None):
+  if model_name=='brownian_bridge_r':
+    return _brownian_bridge_regression(seed)
+
+  elif model_name=='brownian_bridge_c':
+    return _brownian_bridge_classification(seed)
 
   elif model_name=='lorenz_bridge':
     return _lorenz_bridge()
