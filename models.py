@@ -59,22 +59,75 @@ def _brownian_bridge_classification(seed=None):
 
     for t in range(30):
       if t<10 or t>19:
-        yield tfd.Bernoulli(logits=k*truth[t])
+        yield tfd.Bernoulli(logits=k*truth[t], name=f'y_{t}')
 
   ground_truth = model.sample(seed=seed)
   brownian_bridge = model.experimental_pin(ground_truth[30:])
 
   return brownian_bridge, ground_truth[:30], brownian_bridge.unnormalized_log_prob, ground_truth[30:]
 
-def _lorenz_bridge():
-  model = gym.targets.ConvectionLorenzBridge()
-  prior = model.prior_distribution()
-  ground_truth = model.sample_transformations['identity'].ground_truth_mean
-  target_log_prob = lambda *values: model.log_likelihood(values) + \
-                                    prior.log_prob(values)
-  OBSERVED_VALUES = convection_lorenz_bridge.OBSERVED_VALUES
+def _lorenz_bridge_regression(seed=None):
+  @tfd.JointDistributionCoroutineAutoBatched
+  def model():
+    truth = []
+    innovation_noise = .1
+    observation_noise = 1.
+    step_size = 0.02
+    loc = yield Root(tfd.Sample(tfd.Normal(0., 1.), sample_shape=3, name='x_0'))
+    for t in range(1, 30):
+      x, y, z = tf.unstack(loc, axis=-1)
+      truth.append(x)
+      dx = 10 * (y - x)
+      dy = x * (28 - z) - y
+      dz = x * y - 8 / 3 * z
+      delta = tf.stack([dx, dy, dz], axis=-1)
+      loc = yield tfd.Independent(
+        tfd.Normal(loc + step_size * delta,
+                   tf.sqrt(step_size) * innovation_noise),
+        reinterpreted_batch_ndims=1, name=f'x_{t}')
+    x, y, z = tf.unstack(loc, axis=-1)
+    truth.append(x)
 
-  return model, prior, ground_truth, target_log_prob, OBSERVED_VALUES
+    for t in range(30):
+      if t<10 or t>19:
+        yield tfd.Normal(loc=truth[t],
+                         scale=observation_noise,
+                         name=f'y_{t}')
+
+  ground_truth = model.sample(seed=seed)
+  lorenz_bridge = model.experimental_pin(ground_truth[30:])
+  return lorenz_bridge, ground_truth[:30], lorenz_bridge.unnormalized_log_prob, ground_truth[30:]
+
+
+def _lorenz_bridge_classification(seed=None):
+  @tfd.JointDistributionCoroutineAutoBatched
+  def model():
+    truth = []
+    innovation_noise = .1
+    k = 2.
+    step_size = 0.02
+    loc = yield Root(tfd.Sample(tfd.Normal(0., 1.), sample_shape=3, name='x_0'))
+    for t in range(1, 30):
+      x, y, z = tf.unstack(loc, axis=-1)
+      truth.append(x)
+      dx = 10 * (y - x)
+      dy = x * (28 - z) - y
+      dz = x * y - 8 / 3 * z
+      delta = tf.stack([dx, dy, dz], axis=-1)
+      loc = yield tfd.Independent(
+        tfd.Normal(loc + step_size * delta,
+                   tf.sqrt(step_size) * innovation_noise),
+        reinterpreted_batch_ndims=1, name=f'x_{t}')
+    x, y, z = tf.unstack(loc, axis=-1)
+    truth.append(x)
+
+    for t in range(30):
+      if t<10 or t>19:
+        yield tfd.Bernoulli(logits=k*truth[t], name=f'y_{t}')
+
+  ground_truth = model.sample(seed=seed)
+  lorenz_bridge = model.experimental_pin(ground_truth[30:])
+  return lorenz_bridge, ground_truth[:30], lorenz_bridge.unnormalized_log_prob, ground_truth[30:]
 
 def _eight_schools():
 
@@ -189,8 +242,11 @@ def get_model(model_name, seed=None):
   elif model_name=='brownian_bridge_c':
     return _brownian_bridge_classification(seed)
 
-  elif model_name=='lorenz_bridge':
-    return _lorenz_bridge()
+  elif model_name=='lorenz_bridge_r':
+    return _lorenz_bridge_regression(seed)
+
+  elif model_name=='lorenz_bridge_c':
+    return _lorenz_bridge_classification(seed)
 
   elif model_name=='eight_schools':
     return _eight_schools()
