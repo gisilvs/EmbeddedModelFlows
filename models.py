@@ -218,8 +218,8 @@ def _radon():
 def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link, seed=None):
   @tfd.JointDistributionCoroutineAutoBatched
   def collider_model():
-    layers = yield Root(tfd.Sample(tfd.Normal(0., initial_scale), 2 ** num_layers, name=f'layer_{num_layers}'))
-    for l in range(num_layers, 0, -1):
+    layers = yield Root(tfd.Sample(tfd.Normal(0., initial_scale), 2 ** (num_layers - 1), name=f'layer_{num_layers - 1}'))
+    for l in range((num_layers - 1), 0, -1):
       if coupling_link:
         layers = yield tfd.Independent(tfd.Normal(tf.stack(
           [coupling_link(layers[..., i]) - coupling_link(layers[..., i + 1]) for i in range(0, 2 ** l, 2)],
@@ -233,7 +233,7 @@ def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link,
   ground_truth = collider_model.sample(seed=seed)
   model = collider_model.experimental_pin(layer_0=ground_truth[-1])
 
-  return None, model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
+  return model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
 def get_model(model_name, seed=None):
   if model_name=='brownian_bridge_r':
@@ -254,17 +254,11 @@ def get_model(model_name, seed=None):
   elif model_name=='radon':
     return _radon()
 
-  elif model_name=='linear_binary_tree_2':
-    return _gaussian_binary_tree(num_layers=2, initial_scale=0.2, nodes_scale=0.15, coupling_link=None, seed=seed)
-
   elif model_name=='linear_binary_tree_4':
     return _gaussian_binary_tree(num_layers=4, initial_scale=0.2, nodes_scale=0.15, coupling_link=None, seed=seed)
 
   elif model_name=='linear_binary_tree_8':
     return _gaussian_binary_tree(num_layers=8, initial_scale=0.2, nodes_scale=0.15, coupling_link=None, seed=seed)
-
-  elif model_name=='tanh_binary_tree_2':
-    return _gaussian_binary_tree(num_layers=2, initial_scale=0.1, nodes_scale=0.05, coupling_link=tf.nn.tanh, seed=seed)
 
   elif model_name=='tanh_binary_tree_4':
     return _gaussian_binary_tree(num_layers=4, initial_scale=0.1, nodes_scale=0.05, coupling_link=tf.nn.tanh, seed=seed)
