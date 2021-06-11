@@ -1,22 +1,29 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
+
 from flows_bijectors import build_highway_flow_bijector, build_iaf_biector
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
 tfe = tfp.experimental
+tfp_util = tfp.util
 
 # todo: broken with radon, probably need to fix sample and/or independent
 stdnormal_bijector_fns = {
-    tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration, d._rate_parameter()),
-    tfd.Normal: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
-    tfd.MultivariateNormalDiag: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
-    tfd.MultivariateNormalTriL: lambda d: tfb.Shift(d.loc)(tfb.ScaleTriL(d.scale_tril)),
-    tfd.TransformedDistribution: lambda d: d.bijector(_bijector_from_stdnormal(d.distribution)),
-    tfd.Uniform: lambda d: tfb.Shift(d.low)(tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
-    tfd.Sample: lambda d: _bijector_from_stdnormal(d.distribution),
-    tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
+  tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
+                                                 d._rate_parameter()),
+  tfd.Normal: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
+  tfd.MultivariateNormalDiag: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
+  tfd.MultivariateNormalTriL: lambda d: tfb.Shift(d.loc)(
+    tfb.ScaleTriL(d.scale_tril)),
+  tfd.TransformedDistribution: lambda d: d.bijector(
+    _bijector_from_stdnormal(d.distribution)),
+  tfd.Uniform: lambda d: tfb.Shift(d.low)(
+    tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
+  tfd.Sample: lambda d: _bijector_from_stdnormal(d.distribution),
+  tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
 }
+
 
 def _bijector_from_stdnormal(dist):
   fn = stdnormal_bijector_fns[type(dist)]
@@ -27,6 +34,7 @@ class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
 
   def __init__(self, dist):
     return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
+
 
 def _get_prior_matching_bijectors_and_event_dims(prior):
   event_shape = prior.event_shape_tensor()
@@ -41,11 +49,14 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
   reshape_bijector = tfb.JointMap(
     tf.nest.map_structure(tfb.Reshape, flat_event_shape))
 
-  prior_matching_bijectors = [event_space_bijector, unflatten_bijector, reshape_bijector, split_bijector]
+  prior_matching_bijectors = [event_space_bijector, unflatten_bijector,
+                              reshape_bijector, split_bijector]
 
   dtype = tf.nest.flatten(prior.dtype)[0]
 
-  return event_shape, flat_event_shape, flat_event_size, int(tf.reduce_sum(flat_event_size)), dtype, prior_matching_bijectors
+  return event_shape, flat_event_shape, flat_event_size, int(
+    tf.reduce_sum(flat_event_size)), dtype, prior_matching_bijectors
+
 
 def _mean_field(prior):
   '''event_shape = prior.event_shape_tensor()
@@ -54,7 +65,9 @@ def _mean_field(prior):
     prior)
   dims = int(tf.reduce_sum(flat_event_size))
   trainable_dist = tfd.Independent(tfd.Normal(loc=tf.Variable(tf.zeros(dims)),
-                         scale=tfp.util.TransformedVariable(tf.ones(dims), bijector=tfb.Softplus())), 1)
+                                              scale=tfp.util.TransformedVariable(
+                                                tf.ones(dims),
+                                                bijector=tfb.Softplus())), 1)
 
   mean_field_surrogate_posterior = tfd.TransformedDistribution(
     distribution=trainable_dist,
@@ -65,48 +78,58 @@ def _mean_field(prior):
 
 
 def _multivariate_normal(prior):
-  '''event_shape = prior.event_shape_tensor()
-  return tfe.vi.build_affine_surrogate_posterior(event_shape=event_shape, operators='tril')'''
-  event_shape, flat_event_shape, flat_event_size, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+  def make_trainable_linear_operator_tril(
+      dim,
+      scale_initializer=1e-1,
+      diag_bijector=None,
+      diag_shift=1e-5,
+      dtype=tf.float32):
+    """Build a trainable lower triangular linop."""
+    scale_tril_bijector = tfb.FillScaleTriL(
+      diag_bijector, diag_shift=diag_shift)
+    flat_initial_scale = tf.zeros((dim * (dim + 1) // 2,), dtype=dtype)
+    initial_scale_tril = tfb.FillScaleTriL(
+      diag_bijector=tfb.Identity(), diag_shift=scale_initializer)(
+      flat_initial_scale)
+    return tf.linalg.LinearOperatorLowerTriangular(
+      tril=tfp_util.TransformedVariable(
+        initial_scale_tril, bijector=scale_tril_bijector))
+
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
-  dims = int(tf.reduce_sum(flat_event_size))
-  mvn = tfd.MultivariateNormalTriL(
-    loc=tf.Variable(tf.zeros([dims], dtype=tf.float32), name="mu"),
-    scale_tril=tfp.util.TransformedVariable(
-      tf.eye(dims, dtype=tf.float32),
-      tfp.bijectors.FillScaleTriL(),
-      name="raw_scale_tril"))
+  base_dist = tfd.Sample(
+    tfd.Normal(tf.zeros([], dtype), 1.), sample_shape=[ndims])
+  op = make_trainable_linear_operator_tril(ndims)
 
-  mvn_surrogate_posterior = tfd.TransformedDistribution(
-    distribution=mvn,
-    bijector=tfb.Chain(prior_matching_bijectors)
-  )
+  bijectors = prior_matching_bijectors.extend([tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
+    tfb.ScaleMatvecLinearOperator(op)])
 
-  return mvn_surrogate_posterior
+  return tfd.TransformedDistribution(base_dist, tfb.Chain(bijectors))
+
 
 def _asvi(prior):
   return tfe.vi.build_asvi_surrogate_posterior(prior)
 
-def _normalizing_flows(prior, flow_name, flow_params):
 
-  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(prior)
+def _normalizing_flows(prior, flow_name, flow_params):
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
 
   base_distribution = tfd.Sample(
-      tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
+    tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
 
-  if flow_name=='iaf':
+  if flow_name == 'iaf':
     flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_iaf_biector(**flow_params)
-  elif flow_name=='highway_flow':
+  elif flow_name == 'highway_flow':
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
     flow_params['gate_first_n'] = flow_params['width']
     flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
-  elif flow_name=='highway_flow_no_gating':
+  elif flow_name == 'highway_flow_no_gating':
     flow_params['width'] = int(tf.reduce_sum(flat_event_size))
     flow_params['gate_first_n'] = 0
     flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
-
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
@@ -118,7 +141,8 @@ def _normalizing_flows(prior, flow_name, flow_params):
 
 
 def _normalizing_program(prior, backbone_name):
-  backbone_surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name=backbone_name)
+  backbone_surrogate_posterior = get_surrogate_posterior(prior,
+                                                         surrogate_posterior_name=backbone_name)
   bijector = AutoFromNormal(prior)
   return tfd.TransformedDistribution(
     distribution=backbone_surrogate_posterior,
@@ -126,8 +150,8 @@ def _normalizing_program(prior, backbone_name):
   )
 
 
-def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None):
-
+def get_surrogate_posterior(prior, surrogate_posterior_name,
+                            backnone_name=None):
   if surrogate_posterior_name == 'mean_field':
     return _mean_field(prior)
 
@@ -147,18 +171,18 @@ def get_surrogate_posterior(prior, surrogate_posterior_name, backnone_name=None)
   elif surrogate_posterior_name == "highway_flow":
     flow_params = {
       'num_layers': 3,
-      'residual_fraction_initial_value':0.98
+      'residual_fraction_initial_value': 0.98
     }
-    return _normalizing_flows(prior, flow_name='highway_flow', flow_params=flow_params)
+    return _normalizing_flows(prior, flow_name='highway_flow',
+                              flow_params=flow_params)
 
   elif surrogate_posterior_name == "highway_flow_no_gating":
     flow_params = {
       'num_layers': 3,
       'residual_fraction_initial_value': 0.5
     }
-    return _normalizing_flows(prior, flow_name='highway_flow_no_gating', flow_params=flow_params)
+    return _normalizing_flows(prior, flow_name='highway_flow_no_gating',
+                              flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
     return _normalizing_program(prior, backbone_name=backnone_name)
-
-
