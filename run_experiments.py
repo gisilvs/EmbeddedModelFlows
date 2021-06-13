@@ -106,6 +106,6 @@ for i in range(10):
                                backbone_name=None,
                                surrogate_posterior=surrogate_posterior,
                                target_log_prob=target_log_prob,
-                               ground_truth=ground_truth, learning_rate=learning_rates[model_name], i=i, seed=seeds[i])
+                               ground_truth=ground_truth, learning_rate=learning_rates[surrogate_posterior_name], i=i, seed=seeds[i])
 
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
