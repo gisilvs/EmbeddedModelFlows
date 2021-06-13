@@ -11,14 +11,20 @@ from surrogate_posteriors import get_surrogate_posterior
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
+learning_rates = {'mean_field': 1e-3,
+                  'multivariate_normal': 1e-3,
+                  'asvi': 1e-3,
+                  'iaf': 1e-4,
+                  'highway_flow': 1e-4}
+
 
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
-                           ground_truth, i, seed):
+                           ground_truth, learning_rate, i, seed):
 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(
-                                            learning_rate=1e-3),
+                                            learning_rate=learning_rate),
                                           num_steps=100000,
                                           sample_size=50)
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
@@ -66,11 +72,10 @@ surrogate_posterior_names = ['mean_field',
                              'multivariate_normal',
                              'asvi',
                              'iaf',
-                             'highway_flow_no_gating',
                              'normalizing_program']
 
 backbone_names = ['mean_field', 'multivariate_normal', 'iaf',
-                  'highway_flow', 'highway_flow_no_gating']
+                  'highway_flow']
 
 
 seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -90,7 +95,7 @@ for i in range(10):
                                  backbone_name=backbone_name,
                                  surrogate_posterior=surrogate_posterior,
                                  target_log_prob=target_log_prob,
-                                 ground_truth=ground_truth, i=i, seed=seeds[i])
+                                 ground_truth=ground_truth, learning_rate=learning_rates[backbone_name], i=i, seed=seeds[i])
 
       else:
         surrogate_posterior = get_surrogate_posterior(prior,
@@ -101,6 +106,6 @@ for i in range(10):
                                backbone_name=None,
                                surrogate_posterior=surrogate_posterior,
                                target_log_prob=target_log_prob,
-                               ground_truth=ground_truth, i=i, seed=seeds[i])
+                               ground_truth=ground_truth, learning_rate=learning_rates[model_name], i=i, seed=seeds[i])
 
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
