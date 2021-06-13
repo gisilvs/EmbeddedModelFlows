@@ -1,23 +1,27 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
+import matplotlib.pyplot as plt
 
 from models import get_model
 from surrogate_posteriors import get_surrogate_posterior
 from metrics import negative_elbo, forward_kl
 
-model_name = 'eight_schools'
-surrogate_posterior_name = 'highway_flow_no_gating'
-backbone_posterior_name= 'multivariate_normal'
+from plot_utils import plot_data
 
-model, prior, ground_truth, target_log_prob, observations = get_model(model_name)
+model_name = 'lorenz_smoothing_r'
+surrogate_posterior_name = 'normalizing_program'
+backbone_posterior_name= 'iaf'
+
+prior, ground_truth, target_log_prob, observations = get_model(model_name, seed=20)
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
+plot_data(model_name, ground_truth, observations)
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
-                                        optimizer=tf.optimizers.Adam(learning_rate=1e-2),
-                                        num_steps=1000,
-                                        sample_size=10)
+                                        optimizer=tf.optimizers.Adam(learning_rate=1e-4),
+                                        num_steps=100000,
+                                        sample_size=50)
 
-print(f'ELBO: {negative_elbo(target_log_prob, surrogate_posterior, num_smaples=15, model_name=model_name)}')
+print(f'ELBO: {negative_elbo(target_log_prob, surrogate_posterior, num_samples=150, model_name=model_name, seed=20)}')
 if model_name!='radon':
   print(f'FORWARD_KL: {forward_kl(surrogate_posterior, ground_truth)}')
