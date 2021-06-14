@@ -55,7 +55,9 @@ if not os.path.exists('results'):
   os.makedirs('results')
 
 #todo: test more radon
-model_names = ['brownian_smoothing_r',
+model_names = ['eight_schools',
+               'radon',
+               'brownian_smoothing_r',
                'brownian_smoothing_c',
                'brownian_bridge_r',
                'brownian_bridge_c',
@@ -67,8 +69,7 @@ model_names = ['brownian_smoothing_r',
                'linear_binary_tree_8',
                'tanh_binary_tree_4',
                'tanh_binary_tree_8',
-               'eight_schools',
-               'radon']
+               ]
 
 surrogate_posterior_names = ['mean_field',
                              'multivariate_normal',
