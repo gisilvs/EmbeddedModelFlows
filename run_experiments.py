@@ -66,15 +66,18 @@ model_names = ['brownian_smoothing_r',
                'linear_binary_tree_4',
                'linear_binary_tree_8',
                'tanh_binary_tree_4',
-               'tanh_binary_tree_8']
+               'tanh_binary_tree_8',
+               'eight_schools',
+               'radon']
 
 surrogate_posterior_names = ['mean_field',
                              'multivariate_normal',
                              'asvi',
-                             'iaf',
+                             #'iaf',
                              'normalizing_program']
 
-backbone_names = ['mean_field', 'multivariate_normal', 'iaf',
+backbone_names = ['mean_field', 'multivariate_normal',
+                  #'iaf',
                   'highway_flow']
 
 
