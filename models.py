@@ -3,6 +3,7 @@ import tensorflow_probability as tfp
 import tensorflow_datasets as tfds
 from inference_gym import using_tensorflow as gym
 from inference_gym.internal.datasets import  convection_lorenz_bridge
+import pickle
 
 import matplotlib.pyplot as plt
 
@@ -86,29 +87,43 @@ def _lorenz_system(is_bridge, is_classification, seed=None):
   return lorenz_bridge, ground_truth[:30], lorenz_bridge.unnormalized_log_prob, ground_truth[30:]
 
 
-def _eight_schools():
+def _eight_schools(seed=None):
+  num_schools = 8  # number of schools
+  treatment_effects = np.array(
+    [28, 8, -3, 7, -1, 1, 18, 12], dtype=np.float32)  # treatment effects
+  treatment_stddevs = np.array(
+    [15, 10, 16, 11, 9, 11, 10, 18], dtype=np.float32)  # treatment SE
 
-  model = gym.targets.EightSchools()
-  prior = model.prior_distribution()
-  ground_truth = model.sample_transformations['identity'].ground_truth_mean
-  def target_log_prob(avg_effect, log_stddev, school_effects):
-    samples_as_dict = {'avg_effect': avg_effect,
-       'log_stddev': log_stddev,
-       'school_effects': school_effects
-       }
-    return model.log_likelihood(samples_as_dict) + prior.log_prob(samples_as_dict)
-
-  treatment_effects = tf.constant(
-    [28, 8, -3, 7, -1, 1, 18, 12], dtype=tf.float32)
-  treatment_stddevs = tf.constant(
-    [15, 10, 16, 11, 9, 11, 10, 18], dtype=tf.float32)
+  model = tfd.JointDistributionSequential([
+    tfd.Normal(loc=0., scale=10., name="avg_effect"),  # `mu` above
+    tfd.Normal(loc=5., scale=1., name="avg_stddev"),  # `log(tau)` above
+    tfd.Independent(tfd.Normal(loc=tf.zeros(num_schools),
+                               scale=tf.ones(num_schools),
+                               name="school_effects_standard"),
+                    # `theta_prime`
+                    reinterpreted_batch_ndims=1),
+    lambda school_effects_standard, avg_stddev, avg_effect: (
+      tfd.Independent(tfd.Normal(loc=(avg_effect[..., tf.newaxis] +
+                                      tf.exp(avg_stddev[..., tf.newaxis]) *
+                                      school_effects_standard),  # `theta` above
+                                 scale=treatment_stddevs),
+                      name="treatment_effects",  # `y` above
+                      reinterpreted_batch_ndims=1))
+  ])
 
   observations = {'treatment_effects': treatment_effects,
                   'treatment_stddevs': treatment_stddevs}
 
-  return model, prior, ground_truth, target_log_prob, observations
+  eight_schools = model.experimental_pin(treatment_effects=treatment_effects)
 
-def _radon():
+  # if seed is one of those used in run_experiments.py, then we can use them as index of ground truth
+  idx = int(seed / 10 -1)
+  with open(f'ground_truth/eight_schools/gt.pickle', 'rb') as handle:
+    gt = pickle.load(handle)
+
+  return eight_schools, gt[idx], eight_schools.unnormalized_log_prob, observations
+
+def _radon(seed):
 
   dataset = tfds.as_numpy(
     tfds.load('radon', split='train').filter(
@@ -170,7 +185,11 @@ def _radon():
 
   target_model = model.experimental_pin(log_radon=log_radon)
 
-  return None, target_model, None, target_model.unnormalized_log_prob, log_radon
+  idx = int(seed / 10 - 1)
+  with open(f'ground_truth/radon/gt.pickle', 'rb') as handle:
+    gt = pickle.load(handle)
+
+  return target_model, gt[idx], target_model.unnormalized_log_prob, log_radon
 
 def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link, seed=None):
   @tfd.JointDistributionCoroutineAutoBatched
@@ -219,10 +238,10 @@ def get_model(model_name, seed=None):
     return _lorenz_system(is_bridge=True, is_classification=True, seed=seed)
 
   elif model_name=='eight_schools':
-    return _eight_schools()
+    return _eight_schools(seed=seed)
 
   elif model_name=='radon':
-    return _radon()
+    return _radon(seed=seed)
 
   elif model_name=='linear_binary_tree_4':
     return _gaussian_binary_tree(num_layers=4, initial_scale=0.2, nodes_scale=0.15, coupling_link=None, seed=seed)
