@@ -13,14 +13,27 @@ import numpy as np
        'normalizing_program_large_iaf',
        'normalizing_program_highway_flow']'''
 
-sps = ['highway_flow_no_gating', 'normalizing_program_highway_flow_no_gating']
+sps = ['mean_field',
+       'multivariate_normal',
+       'asvi',
+       'iaf',
+       'normalizing_program_mean_field',
+       'normalizing_program_multivariate_normal',
+       'normalizing_program_iaf',
+       'normalizing_program_highway_flow',
+       ]
+
 root_dir='results'
 results_dict = {}
 
 for model in os.listdir(root_dir):
+  if model == 'lorenz_bridge_r':
+    a = 0
   model_dir=f'{root_dir}/{model}'
   results_dict[model] = {}
   for surrogate_posterior in os.listdir(model_dir):
+    if surrogate_posterior == 'normalizing_program_iaf':
+      a = 0
     results_dict[model][surrogate_posterior]={}
     surrogate_posterior_dir = f'{model_dir}/{surrogate_posterior}'
     reps = []
