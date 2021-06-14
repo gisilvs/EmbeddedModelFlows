@@ -108,11 +108,11 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['ndims'] = ndims
     flow_bijector = build_iaf_bijector(**flow_params)
   elif flow_name == 'highway_flow':
-    flow_params['width'] = int(tf.reduce_sum(flat_event_size))
-    flow_params['gate_first_n'] = flow_params['width']
+    flow_params['width'] = ndims
+    flow_params['gate_first_n'] = ndims
     flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
   elif flow_name == 'highway_flow_no_gating':
-    flow_params['width'] = int(tf.reduce_sum(flat_event_size))
+    flow_params['width'] = ndims
     flow_params['gate_first_n'] = 0
     flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
 
