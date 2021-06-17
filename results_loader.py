@@ -16,10 +16,10 @@ import numpy as np
 sps = ['mean_field',
        'multivariate_normal',
        'asvi',
-       'iaf',
+       #'iaf',
        'normalizing_program_mean_field',
        'normalizing_program_multivariate_normal',
-       'normalizing_program_iaf',
+       #'normalizing_program_iaf',
        'normalizing_program_highway_flow',
        ]
 
@@ -48,16 +48,24 @@ for model in os.listdir(root_dir):
 for k, models in results_dict.items():
     print(f'{k}')
 
-    print("& ELBO")
-    for surrogate_posterior in sps:
+    bold_idx = np.argmin([models[s]["elbo"].mean() for s in sps])
+    print("& -ELBO")
+    for i, surrogate_posterior in enumerate(sps):
       f = ''
-      f += f' & ${models[surrogate_posterior]["elbo"].mean():.3f} \\pm {models[surrogate_posterior]["elbo"].sem():.3f}$'
+      if i == bold_idx:
+        f += f' & $\\boldsymbol{{{models[surrogate_posterior]["elbo"].mean():.3f} \\pm {models[surrogate_posterior]["elbo"].sem():.3f}}}$'
+      else:
+        f += f' & ${models[surrogate_posterior]["elbo"].mean():.3f} \\pm {models[surrogate_posterior]["elbo"].sem():.3f}$'
       print(f)
 
+    bold_idx = np.argmax([models[s]["fkl"].mean() for s in sps])
     print("& FKL")
-    for surrogate_posterior in sps:
+    for i, surrogate_posterior in enumerate(sps):
       f = ''
-      f += f' & ${models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}$'
+      if i == bold_idx:
+        f += f' & $\\boldsymbol{{{models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}}}$'
+      else:
+        f += f' & ${models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}$'
       print(f)
 
 
