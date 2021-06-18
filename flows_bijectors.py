@@ -38,7 +38,7 @@ def build_iaf_bijector(num_hidden_units,
     net = tfb.AutoregressiveNetwork(
       2,
       hidden_units=[num_hidden_units, num_hidden_units],
-      activation=tf.tanh,
+      activation=tf.nn.relu,
       dtype=dtype)
 
     maf = tfb.MaskedAutoregressiveFlow(
@@ -58,34 +58,27 @@ def build_iaf_bijector(num_hidden_units,
 
   return iaf_bijector
 
-'''def build_real_nvp_bijector(num_hidden_units,
+def build_real_nvp_bijector(num_hidden_units,
                        ndims,
-                       dtype,
                        num_flow_layers=2):
-  make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
-  def make_maf():
-    net = tfb.AutoregressiveNetwork(
-      2,
-      hidden_units=[num_hidden_units, num_hidden_units],
-      activation=tf.tanh,
-      dtype=dtype)
+  def make_rnvp(num_masked):
+    rnvp = tfb.RealNVP(
+      num_masked,
+      shift_and_log_scale_fn=tfb.real_nvp_default_template(
+        hidden_layers=[num_hidden_units, num_hidden_units]))
 
-    maf = tfb.MaskedAutoregressiveFlow(
-      bijector_fn=lambda x: tfb.Chain(
-        [tfb.Shift(net(x)[Ellipsis, 0]),  # pylint: disable=g-long-lambda
-         tfb.Scale(log_scale=net(x)[Ellipsis, 1])]))
 
-    maf = tfb.Invert(maf)
-    # To track the variables
-    maf._net = net  # pylint: disable=protected-access
-    return maf
-  
-  real_nvp_bijector = tfb.RealNvp()
+    return rnvp
 
-  iaf_bijector = [make_maf()]
+  d = ndims//2
 
-  for _ in range(num_flow_layers - 1):
-    iaf_bijector.extend([make_swap(), make_maf()])
+  rnvp_bijector = [make_rnvp(d)]
+  for i in range(num_flow_layers - 1):
+    #rnvp_bijector.append(tfb.Permute(permutation=[1,0]))
+    if i % 2 == 0:
+      rnvp_bijector.append(make_rnvp(-d))
+    else:
+      rnvp_bijector.append(make_rnvp(d))
 
-  return iaf_bijector'''
+  return rnvp_bijector
