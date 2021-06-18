@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_highway_flow_bijector, build_iaf_bijector
+from flows_bijectors import build_highway_flow_bijector, build_iaf_bijector, build_real_nvp_bijector
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -115,6 +115,10 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['width'] = ndims
     flow_params['gate_first_n'] = 0
     flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
+  if flow_name == 'real_nvp':
+    #flow_params['dtype'] = dtype
+    flow_params['ndims'] = ndims
+    flow_bijector = build_real_nvp_bijector(**flow_params)
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
@@ -168,6 +172,13 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     }
     return _normalizing_flows(prior, flow_name='highway_flow_no_gating',
                               flow_params=flow_params)
+
+  elif surrogate_posterior_name == "real_nvp":
+    flow_params = {
+      'num_flow_layers': 2,
+      'num_hidden_units': 512
+    }
+    return _normalizing_flows(prior, flow_name='real_nvp', flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
     return _normalizing_program(prior, backbone_name=backnone_name)
