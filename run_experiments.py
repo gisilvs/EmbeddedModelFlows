@@ -4,10 +4,12 @@ import pickle
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
+import matplotlib.pyplot as plt
 
 from metrics import negative_elbo, forward_kl
 from models import get_model
 from surrogate_posteriors import get_surrogate_posterior
+
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
@@ -25,7 +27,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(
                                             learning_rate=learning_rate),
-                                          num_steps=100000,
+                                          num_steps=10000,
                                           sample_size=50)
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
                        model_name=model_name, seed=seed)
@@ -34,6 +36,11 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
     fkl = forward_kl(surrogate_posterior, ground_truth)
   else:
     fkl = None
+
+  plt.plot(losses)
+  plt.show()
+  print(elbo)
+  print(fkl)
 
   results = {'loss':losses,
              'elbo':elbo,
@@ -71,15 +78,17 @@ model_names = ['eight_schools',
                'tanh_binary_tree_8',
                ]
 
-surrogate_posterior_names = ['mean_field',
-                             'multivariate_normal',
-                             'asvi',
-                             #'iaf',
+surrogate_posterior_names = [#'mean_field',
+                             #'multivariate_normal',
+                             #'asvi',
+                             'iaf',
                              'normalizing_program']
 
-backbone_names = ['mean_field', 'multivariate_normal',
-                  #'iaf',
-                  'highway_flow']
+backbone_names = [#'mean_field',
+                  #'multivariate_normal',
+                  'iaf',
+                  #'highway_flow'
+]
 
 
 seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
