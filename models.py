@@ -1,8 +1,6 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 import tensorflow_datasets as tfds
-from inference_gym import using_tensorflow as gym
-from inference_gym.internal.datasets import  convection_lorenz_bridge
 import pickle
 
 import matplotlib.pyplot as plt
