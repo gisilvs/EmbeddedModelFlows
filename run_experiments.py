@@ -16,7 +16,7 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 learning_rates = {'mean_field': 1e-3,
                   'multivariate_normal': 1e-3,
                   'asvi': 1e-3,
-                  'iaf': 1e-4,
+                  'iaf': 5e-5,
                   'highway_flow': 1e-4}
 
 
