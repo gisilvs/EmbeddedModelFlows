@@ -58,7 +58,7 @@ if not os.path.exists('results'):
 
 #todo: test more radon
 model_names = ['eight_schools',
-               'radon',
+               #'radon',
                'brownian_smoothing_r',
                'brownian_smoothing_c',
                'brownian_bridge_r',
@@ -76,8 +76,8 @@ model_names = ['eight_schools',
 surrogate_posterior_names = [#'mean_field',
                              #'multivariate_normal',
                              #'asvi',
-                             'iaf',
-                             'normalizing_program']
+                             'iaf']
+                             #'normalizing_program']
 
 backbone_names = [#'mean_field',
                   #'multivariate_normal',
