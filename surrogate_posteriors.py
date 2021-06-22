@@ -129,9 +129,10 @@ def _normalizing_flows(prior, flow_name, flow_params):
   return nf_surrogate_posterior
 
 
-def _normalizing_program(prior, backbone_name):
+def _normalizing_program(prior, backbone_name, flow_params):
   backbone_surrogate_posterior = get_surrogate_posterior(prior,
-                                                         surrogate_posterior_name=backbone_name)
+                                                         surrogate_posterior_name=backbone_name,
+                                                         flow_params=flow_params)
   bijector = AutoFromNormal(prior)
   return tfd.TransformedDistribution(
     distribution=backbone_surrogate_posterior,
@@ -140,7 +141,8 @@ def _normalizing_program(prior, backbone_name):
 
 
 def get_surrogate_posterior(prior, surrogate_posterior_name,
-                            backnone_name=None):
+                            backnone_name=None, flow_params={}):
+
   if surrogate_posterior_name == 'mean_field':
     return _mean_field(prior)
 
@@ -151,10 +153,10 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _asvi(prior)
 
   elif surrogate_posterior_name == "iaf":
-    flow_params = {
-      'num_flow_layers': 2,
-      'num_hidden_units': 512
-    }
+    flow_params['num_flow_layers'] = 2
+    flow_params['num_hidden_units'] = 512
+    if 'activation_fn' not in flow_params:
+      flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
   elif surrogate_posterior_name == "highway_flow":
@@ -181,4 +183,9 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _normalizing_flows(prior, flow_name='real_nvp', flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
+    if backnone_name=='iaf':
+      flows_params = {'activation_fn':tf.nn.relu}
+    return _normalizing_program(prior, backbone_name=backnone_name, flow_params=flows_params)
+
+  elif surrogate_posterior_name == "normalizing_program_iaf_sandwich":
     return _normalizing_program(prior, backbone_name=backnone_name)

@@ -30,15 +30,16 @@ def build_highway_flow_bijector(num_layers, width,
 
 def build_iaf_bijector(num_hidden_units,
                        ndims,
+                       activation_fn,
                        dtype,
-                       num_flow_layers=2):
+                       num_flow_layers=2,):
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
   def make_maf():
     net = tfb.AutoregressiveNetwork(
       2,
       hidden_units=[num_hidden_units, num_hidden_units],
-      activation=tf.nn.relu,
+      activation=activation_fn,
       dtype=dtype)
 
     maf = tfb.MaskedAutoregressiveFlow(
