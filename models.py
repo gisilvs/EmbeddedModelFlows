@@ -153,29 +153,26 @@ def _radon(seed):
   county_mean_floor = np.array(county_mean_floor, dtype=log_radon.dtype)
   floor_by_county = county_mean_floor[county]
 
-  # Create variables for fixed effects.
-  floor_weight = tf.Variable(0.)
-  bias = tf.Variable(0.)
-
-  # Variables for scale parameters.
-  log_radon_scale = tfp.util.TransformedVariable(1., tfb.Exp())
-  county_effect_scale = tfp.util.TransformedVariable(1., tfb.Exp())
-
   # Define the probabilistic graphical model as a JointDistribution.
   @tfd.JointDistributionCoroutineAutoBatched
   def model():
+    county_effect_mean = yield tfd.Normal(0., 1., name='county_effect_mean')
+    county_effect_scale = yield tfd.HalfNormal(scale=1., name='county_effect_scale')
+
+    county_effect = yield tfd.Sample(
+      tfd.Normal(county_effect_mean, scale=county_effect_scale),
+      sample_shape=[num_counties], name='county_effect')
+
     uranium_weight = yield tfd.Normal(0., scale=1., name='uranium_weight')
     county_floor_weight = yield tfd.Normal(
       0., scale=1., name='county_floor_weight')
-    county_effect = yield tfd.Sample(
-      tfd.Normal(0., scale=county_effect_scale),
-      sample_shape=[num_counties], name='county_effect')
+    floor_weight = yield tfd.Normal(0., scale=1., name='floor_weight')
+
+    log_radon_scale = yield tfd.HalfNormal(scale=1., name='log_radon_scale')
     yield tfd.Normal(
       loc=(log_uranium * uranium_weight + floor_of_house * floor_weight
-
            + floor_by_county * county_floor_weight
-           + tf.gather(county_effect, county, axis=-1)
-           + bias),
+           + tf.gather(county_effect, county, axis=-1)),
       scale=log_radon_scale[..., tf.newaxis],
       name='log_radon')
 

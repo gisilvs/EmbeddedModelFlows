@@ -76,6 +76,10 @@ while 1:
       hmc_samples[0][idx][chain_idx],
       hmc_samples[1][idx][chain_idx],
       hmc_samples[2][idx][chain_idx],
+      hmc_samples[3][idx][chain_idx],
+      hmc_samples[4][idx][chain_idx],
+      hmc_samples[5][idx][chain_idx],
+      hmc_samples[6][idx][chain_idx],
     ])
     idxs.append(idx)
     i+=1
