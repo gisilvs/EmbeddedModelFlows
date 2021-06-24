@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from flows_bijectors import build_highway_flow_bijector, build_iaf_bijector, build_real_nvp_bijector
+from gate_bijector import GateBijector, GateBijectorForNormal
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -13,6 +14,7 @@ stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   tfd.Normal: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
+  tfd.HalfNormal: lambda d: tfb.AbsoluteValue()(tfb.Scale(d.scale)),
   tfd.MultivariateNormalDiag: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
   tfd.MultivariateNormalTriL: lambda d: tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)),
@@ -24,9 +26,29 @@ stdnormal_bijector_fns = {
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
 }
 
+gated_stdnormal_bijector_fns = {
+  tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
+                                                 d._rate_parameter()),
+  tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, tfp.util.TransformedVariable(0.98,
+                                                          bijector=tfb.Sigmoid())),
+  tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale))),
+  tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
+    tfb.ScaleTriL(d.scale_tril))),
+  tfd.TransformedDistribution: lambda d: d.bijector(
+    _gated_bijector_from_stdnormal(d.distribution)),
+  tfd.Uniform: lambda d: GateBijector(tfb.Shift(d.low)(
+    tfb.Scale(d.high - d.low)(tfb.NormalCDF()))),
+  tfd.Sample: lambda d: _gated_bijector_from_stdnormal(d.distribution),
+  tfd.Independent: lambda d: _gated_bijector_from_stdnormal(d.distribution)
+}
+
 
 def _bijector_from_stdnormal(dist):
   fn = stdnormal_bijector_fns[type(dist)]
+  return fn(dist)
+
+def _gated_bijector_from_stdnormal(dist):
+  fn = gated_stdnormal_bijector_fns[type(dist)]
   return fn(dist)
 
 
@@ -34,6 +56,11 @@ class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
 
   def __init__(self, dist):
     return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
+
+class GatedAutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
+
+  def __init__(self, dist):
+    return super().__init__(dist, bijector_fn=_gated_bijector_from_stdnormal)
 
 
 def _get_prior_matching_bijectors_and_event_dims(prior):
@@ -139,6 +166,17 @@ def _normalizing_program(prior, backbone_name, flow_params):
     bijector=bijector
   )
 
+def _gated_normalizing_program(prior, backbone_name, flow_params):
+  backbone_surrogate_posterior = get_surrogate_posterior(prior,
+                                                         surrogate_posterior_name=backbone_name,
+                                                         flow_params=flow_params)
+  bijector = GatedAutoFromNormal(prior)
+  return tfd.TransformedDistribution(
+    distribution=backbone_surrogate_posterior,
+    bijector=bijector
+  )
+
+
 
 def get_surrogate_posterior(prior, surrogate_posterior_name,
                             backnone_name=None, flow_params={}):
@@ -184,8 +222,17 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "normalizing_program":
     if backnone_name=='iaf':
-      flows_params = {'activation_fn':tf.nn.relu}
-    return _normalizing_program(prior, backbone_name=backnone_name, flow_params=flows_params)
+      flow_params = {'activation_fn':tf.nn.relu}
+    else:
+      flow_params={}
+    return _normalizing_program(prior, backbone_name=backnone_name, flow_params=flow_params)
+
+  elif surrogate_posterior_name == "gated_normalizing_program":
+    if backnone_name=='iaf':
+      flow_params = {'activation_fn':tf.nn.relu}
+    else:
+      flow_params={}
+    return _gated_normalizing_program(prior, backbone_name=backnone_name, flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program_iaf_sandwich":
     return _normalizing_program(prior, backbone_name=backnone_name)
