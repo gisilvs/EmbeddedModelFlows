@@ -16,10 +16,10 @@ import numpy as np
 sps = ['mean_field',
        'multivariate_normal',
        'asvi',
-       #'iaf',
+       'iaf',
        'normalizing_program_mean_field',
        'normalizing_program_multivariate_normal',
-       #'normalizing_program_iaf',
+       'normalizing_program_iaf',
        'normalizing_program_highway_flow',
        ]
 
