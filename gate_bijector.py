@@ -19,7 +19,7 @@ class GateBijectorForNormal(tfb.Bijector):
       forward_min_event_ndims=0,
       name=name)
 
-  def forward(self, x):
+  def _forward(self, x):
     x = self.residual_fraction * (self.loc + self.scale * x) + \
         (1 - self.residual_fraction) * x
     return x

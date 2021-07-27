@@ -17,6 +17,14 @@ prior, ground_truth, target_log_prob, observations = get_model(model_name, seed=
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
 
 surrogate_posterior.log_prob(surrogate_posterior.sample())
+
+with tf.GradientTape() as tape:
+  posterior_sample = surrogate_posterior.sample(
+    seed=(0, 0))
+  posterior_logprob = surrogate_posterior.log_prob(posterior_sample)
+grad = tape.gradient(posterior_logprob,
+                     surrogate_posterior.trainable_variables)
+
 # plot_data(model_name, ground_truth, observations)
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
