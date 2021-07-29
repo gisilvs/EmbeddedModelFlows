@@ -22,13 +22,27 @@ learning_rates = {'mean_field': 1e-3,
 
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
                            ground_truth, learning_rate, i, seed):
+  target_lr = 1e-3
+  lr_scaling_factor = target_lr / learning_rate
+
+  def scale_grad_by_factor(gradient_and_variable):
+    gradient_and_variable = [
+      (g[0] * lr_scaling_factor, g[1]) if 'residual_fraction' in g[
+        1].name else (g[0], g[1]) for g in gradient_and_variable]
+    return gradient_and_variable
+
+  if surrogate_posterior_name == 'gated_normalizing_program':
+    optimizer = tf.optimizers.Adam(learning_rate=learning_rate, gradient_transformers=[scale_grad_by_factor])
+
+  else:
+    optimizer = tf.optimizers.Adam(learning_rate=learning_rate)
 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
-                                          optimizer=tf.optimizers.Adam(
-                                            learning_rate=learning_rate),
+                                          optimizer=optimizer,
                                           num_steps=100000,
                                           sample_size=50)
+
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
                        model_name=model_name, seed=seed)
 
@@ -76,11 +90,12 @@ model_names = ['eight_schools',
 surrogate_posterior_names = [#'mean_field',
                              #'multivariate_normal',
                              #'asvi',
-                             'iaf']
+                             #'iaf',
                              #'normalizing_program']
+                             'gated_normalizing_program']
 
-backbone_names = [#'mean_field',
-                  #'multivariate_normal',
+backbone_names = ['mean_field',
+                  'multivariate_normal',
                   'iaf',
                   #'highway_flow'
 ]
@@ -93,7 +108,7 @@ for i in range(10):
     prior, ground_truth, target_log_prob, observations = get_model(
       model_name, seed=seeds[i])
     for surrogate_posterior_name in surrogate_posterior_names:
-      if surrogate_posterior_name == 'normalizing_program':
+      if surrogate_posterior_name == 'normalizing_program' or surrogate_posterior_name=='gated_normalizing_program':
         for backbone_name in backbone_names:
           surrogate_posterior = get_surrogate_posterior(prior,
                                                         surrogate_posterior_name,
