@@ -53,7 +53,7 @@ def _lorenz_system(is_bridge, is_classification, seed=None):
     observation_noise = 1.
     k = 2.
     step_size = 0.02
-    loc = yield Root(tfd.Sample(tfd.Normal(0., 1.), sample_shape=3, name='x_0'))
+    loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=3))
     for t in range(1, 30):
       x, y, z = tf.unstack(loc, axis=-1)
       truth.append(x)
@@ -63,8 +63,8 @@ def _lorenz_system(is_bridge, is_classification, seed=None):
       delta = tf.stack([dx, dy, dz], axis=-1)
       loc = yield tfd.Independent(
         tfd.Normal(loc + step_size * delta,
-                   tf.sqrt(step_size) * innovation_noise),
-        reinterpreted_batch_ndims=1, name=f'x_{t}')
+                   tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
+        reinterpreted_batch_ndims=1)
     x, y, z = tf.unstack(loc, axis=-1)
     truth.append(x)
 
@@ -189,20 +189,20 @@ def _radon(seed):
 def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link, seed=None):
   @tfd.JointDistributionCoroutineAutoBatched
   def collider_model():
-    layers = yield Root(tfd.Sample(tfd.Normal(0., initial_scale), 2 ** (num_layers - 1), name=f'layer_{num_layers - 1}'))
+    layers = yield Root(tfd.Sample(tfd.Normal(0., initial_scale, name=f'layer_{num_layers - 1}'), 2 ** (num_layers - 1)))
     for l in range((num_layers - 1), 0, -1):
       if coupling_link:
         layers = yield tfd.Independent(tfd.Normal(tf.stack(
           [coupling_link(layers[..., i]) - coupling_link(layers[..., i + 1]) for i in range(0, 2 ** l, 2)],
           -1),
-          nodes_scale), 1, name=f'layer_{l - 1}')
+          nodes_scale, name=f'layer_{l - 1}'), 1)
       else:
         layers = yield tfd.Independent(tfd.Normal(tf.stack(
           [layers[..., i] - layers[..., i + 1] for i in range(0, 2 ** l, 2)], -1),
-                                                  nodes_scale), 1, name=f'layer_{l-1}')
+                                                  nodes_scale, name=f'layer_{l-1}'), 1)
 
   ground_truth = collider_model.sample(seed=seed)
-  model = collider_model.experimental_pin(layer_0=ground_truth[-1])
+  model = collider_model.experimental_pin(var3=ground_truth[-1])
 
   return model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
