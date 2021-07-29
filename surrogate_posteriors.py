@@ -41,13 +41,14 @@ gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
-  tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale))),
+  #tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
+  tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
-    tfb.ScaleTriL(d.scale_tril))),
+    tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
   tfd.TransformedDistribution: lambda d: d.bijector(
     _gated_bijector_from_stdnormal(d.distribution)),
   tfd.Uniform: lambda d: GateBijector(tfb.Shift(d.low)(
-    tfb.Scale(d.high - d.low)(tfb.NormalCDF()))),
+    tfb.Scale(d.high - d.low)(tfb.NormalCDF())), get_residual_fraction(d)),
   tfd.Sample: lambda d: _gated_bijector_from_stdnormal(d.distribution),
   tfd.Independent: lambda d: _gated_bijector_from_stdnormal(d.distribution)
 }

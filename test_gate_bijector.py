@@ -7,7 +7,7 @@ import bijector_test_util
 
 from surrogate_posteriors import get_surrogate_posterior, GatedAutoFromNormal
 
-from gate_bijector import GateBijectorForNormal
+from gate_bijector import GateBijectorForNormal, GateBijector
 
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -99,3 +99,44 @@ class GateBijectorForNormalTests(test_util.TestCase):
 
 # TODO: add test for jacobian
 
+@test_util.test_all_tf_execution_regimes
+class GateBijectorTests(test_util.TestCase):
+
+  def testBijector(self):
+    x = samplers.uniform([3], minval=-1., maxval=1., seed=(0,0))
+
+    bijector = GateBijector(tfb.Shift(3.)(tfb.Scale(2.)), tfp.util.TransformedVariable(0.98,
+                                                          bijector=tfb.Sigmoid()))
+
+    self.evaluate([v.initializer for v in bijector.trainable_variables])
+    self.assertStartsWith(bijector.name, 'gate_bijector')
+    self.assertAllClose(x, bijector.inverse(tf.identity(bijector.forward(x))))
+    self.assertAllClose(
+      bijector.forward_log_det_jacobian(x, event_ndims=1),
+      -bijector.inverse_log_det_jacobian(
+        tf.identity(bijector.forward(x)), event_ndims=1))
+
+  def testTheoreticalFldj(self):
+    x = samplers.uniform([10], minval=-1., maxval=1., seed=(0, 0))
+    bijector = GateBijector(tfb.Shift(3.)(tfb.Scale(2.)), tfp.util.TransformedVariable(0.98,
+                                                          bijector=tfb.Sigmoid()))
+    self.evaluate([v.initializer for v in bijector.trainable_variables])
+    y = bijector.forward(x)
+    bijector_test_util.assert_bijective_and_finite(
+      bijector,
+      x,
+      y,
+      eval_func=self.evaluate,
+      event_ndims=1,
+      inverse_event_ndims=1,
+      rtol=1e-5)
+
+    fldj = bijector.forward_log_det_jacobian(x, event_ndims=1)
+    # The jacobian is not yet broadcast, since it is constant.
+    fldj_theoretical = bijector_test_util.get_fldj_theoretical(
+      bijector, x, event_ndims=1)
+    self.assertAllClose(
+      self.evaluate(fldj_theoretical),
+      self.evaluate(fldj),
+      atol=1e-5,
+      rtol=1e-5)

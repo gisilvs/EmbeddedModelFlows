@@ -39,10 +39,9 @@ class GateBijector(tfb.Bijector):
   _cache = cache_util.BijectorCacheWithGreedyAttrs(
     forward_name='_augmented_forward', inverse_name='_augmented_inverse')
 
-  def __init__(self, dist_bijector, validate_args=False, name='gate_bijector'):
+  def __init__(self, dist_bijector, residual_fraction, validate_args=False, name='gate_bijector'):
     self.dist_bijector = dist_bijector
-    self.residual_fraction = tfp.util.TransformedVariable(0.98,
-                                                          bijector=tfb.Sigmoid())
+    self.residual_fraction = residual_fraction
     super(GateBijector, self).__init__(
       validate_args=validate_args,
       forward_min_event_ndims=0,
@@ -54,13 +53,14 @@ class GateBijector(tfb.Bijector):
       additional_scalar_parameters_requiring_gradients=[
         gated_residual_fraction]))
 
+
   def _augmented_forward(self, x):
-    bij = self._gating_bijector(self.residual_fraction)
+    bij = self._gating_bijector(tf.convert_to_tensor(self.residual_fraction))
     fldj = bij.forward_log_det_jacobian(x)
     return bij.forward(x), {'ildj': -fldj, 'fldj': fldj}
 
   def _augmented_inverse(self, y):
-    bij = self._gating_bijector(self.residual_fraction)
+    bij = self._gating_bijector(tf.convert_to_tensor(self.residual_fraction))
     ildj = bij.inverse_log_det_jacobian(y)
     return bij.inverse(y), {'ildj': ildj, 'fldj': -ildj}
 
