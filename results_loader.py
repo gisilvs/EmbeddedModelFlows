@@ -1,6 +1,7 @@
 import os
 import pickle
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.stats import sem
 import numpy as np
 
@@ -27,7 +28,7 @@ root_dir='results'
 results_dict = {}
 
 for model in os.listdir(root_dir):
-  if model == 'lorenz_bridge_r':
+  if model == 'lorenz_smoothing_r':
     a = 0
   model_dir=f'{root_dir}/{model}'
   results_dict[model] = {}
