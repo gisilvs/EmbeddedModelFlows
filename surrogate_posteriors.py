@@ -9,6 +9,17 @@ tfb = tfp.bijectors
 tfe = tfp.experimental
 tfp_util = tfp.util
 
+# Global dict (DANGEROUS)
+residual_fraction_vars = {}
+
+def get_residual_fraction(dist):
+  dist_name = dist.parameters['name']
+  if dist_name not in residual_fraction_vars:
+    #print("CREATING VARIABLE")
+    print(f'{dist_name}')
+    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid(), name='residual_fraction')
+  return residual_fraction_vars[dist_name]
+
 # todo: broken with radon, probably need to fix sample and/or independent
 stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
@@ -29,8 +40,7 @@ stdnormal_bijector_fns = {
 gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
-  tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, tfp.util.TransformedVariable(0.98,
-                                                          bijector=tfb.Sigmoid())),
+  tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale))),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril))),
@@ -167,9 +177,22 @@ def _normalizing_program(prior, backbone_name, flow_params):
   )
 
 def _gated_normalizing_program(prior, backbone_name, flow_params):
+  '''for d in prior._get_single_sample_distributions():
+    if type(d) == tfd.Independent or type(d) == tfd.Sample:
+      d.distribution._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())
+    else:
+      d._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())'''
+
   backbone_surrogate_posterior = get_surrogate_posterior(prior,
                                                          surrogate_posterior_name=backbone_name,
                                                          flow_params=flow_params)
+
+  '''for d in backbone_surrogate_posterior._get_single_sample_distributions():
+    if type(d) == tfd.Independent or type(d) == tfd.Sample:
+      d.distribution._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())
+    else:
+      d._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())'''
+
   bijector = GatedAutoFromNormal(prior)
   return tfd.TransformedDistribution(
     distribution=backbone_surrogate_posterior,
