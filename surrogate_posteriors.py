@@ -16,7 +16,7 @@ def get_residual_fraction(dist):
   dist_name = dist.parameters['name']
   if dist_name not in residual_fraction_vars:
     #print("CREATING VARIABLE")
-    print(f'{dist_name}')
+    #print(f'{dist_name}')
     residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid(), name='residual_fraction')
   return residual_fraction_vars[dist_name]
 
