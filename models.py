@@ -202,7 +202,13 @@ def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link,
                                                   nodes_scale, name=f'layer_{l-1}'), 1)
 
   ground_truth = collider_model.sample(seed=seed)
-  model = collider_model.experimental_pin(var3=ground_truth[-1])
+  if num_layers == 8:
+    model = collider_model.experimental_pin(var7=ground_truth[-1])
+  elif num_layers == 4:
+    model = collider_model.experimental_pin(var3=ground_truth[-1])
+  else:
+    print(f'Number of layers = {num_layers} not supported')
+    exit(1)
 
   return model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
