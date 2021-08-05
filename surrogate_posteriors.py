@@ -17,7 +17,7 @@ def get_residual_fraction(dist):
   if dist_name not in residual_fraction_vars:
     #print("CREATING VARIABLE")
     #print(f'{dist_name}')
-    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid(), name='residual_fraction')
+    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.999, bijector=tfb.Sigmoid(), name='residual_fraction')
   return residual_fraction_vars[dist_name]
 
 # todo: broken with radon, probably need to fix sample and/or independent
