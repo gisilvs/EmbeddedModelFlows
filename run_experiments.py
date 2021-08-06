@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 
 from metrics import negative_elbo, forward_kl
 from models import get_model
-from surrogate_posteriors import get_surrogate_posterior, residual_fraction_vars
+import surrogate_posteriors
+from surrogate_posteriors import get_surrogate_posterior
 
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
@@ -26,7 +27,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
-                                          num_steps=100000,
+                                          num_steps=10,
                                           sample_size=50)
 
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
@@ -41,7 +42,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
     results = {'loss':losses,
                'elbo':elbo,
                'fkl':fkl,
-               'residual_fraction_vars': residual_fraction_vars,
+               'residual_fraction_vars': surrogate_posteriors.residual_fraction_vars,
                }
   else:
     results = {'loss': losses,
