@@ -27,7 +27,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
-                                          num_steps=10,
+                                          num_steps=100000,
                                           sample_size=50)
 
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
