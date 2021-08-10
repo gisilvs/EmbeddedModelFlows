@@ -24,10 +24,6 @@ class GateBijectorForNormalTests(test_util.TestCase):
     self.evaluate([v.initializer for v in bijector.trainable_variables])
     self.assertStartsWith(bijector.name, 'gate_bijector_for_normal')
     self.assertAllClose(x, bijector.inverse(tf.identity(bijector.forward(x))))
-    self.assertAllClose(
-      bijector.forward_log_det_jacobian(x, event_ndims=1),
-      -bijector.inverse_log_det_jacobian(
-        tf.identity(bijector.forward(x)), event_ndims=1))
 
   def testTheoreticalFldj(self):
     x = samplers.uniform([10], minval=-1., maxval=1., seed=(0, 0))
@@ -53,10 +49,6 @@ class GateBijectorForNormalTests(test_util.TestCase):
       self.evaluate(fldj),
       atol=1e-5,
       rtol=1e-5)
-
-
-
-
 
   def testGradientsSimplecase(self):
     bijector = GateBijectorForNormal(3., 2., tfp.util.TransformedVariable(0.98,
@@ -96,8 +88,6 @@ class GateBijectorForNormalTests(test_util.TestCase):
 
     self.assertTrue(all(g is not None for g in grad))
 
-
-# TODO: add test for jacobian
 
 @test_util.test_all_tf_execution_regimes
 class GateBijectorTests(test_util.TestCase):
