@@ -18,32 +18,39 @@ def scale_grad_by_factor(gradient_and_variable):
   return gradient_and_variable
 
 
-model_name = 'lorenz_smoothing_r'
+model_name = 'brownian_smoothing_r'
 surrogate_posterior_name = 'gated_normalizing_program'
 backbone_posterior_name= 'iaf'
-seed = 80
+seed = 10
 
 prior, ground_truth, target_log_prob, observations = get_model(model_name, seed=seed)
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
 
-'''surrogate_posterior.log_prob(surrogate_posterior.sample())
+surrogate_posterior.log_prob(surrogate_posterior.sample())
 
 with tf.GradientTape() as tape:
   posterior_sample = surrogate_posterior.sample(
     seed=(0, 0))
   posterior_logprob = surrogate_posterior.log_prob(posterior_sample)
 grad = tape.gradient(posterior_logprob,
-                     surrogate_posterior.trainable_variables)'''
+                     surrogate_posterior.trainable_variables)
 
 # plot_data(model_name, ground_truth, observations)
 trainable_variables = list(surrogate_posterior.trainable_variables)
 print(surrogate_posteriors.residual_fraction_vars)
 
+num_steps = 100000
+'''learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
+    1e-5,
+    num_steps,
+    1e-6,
+    power=0.9)'''
+
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
-                                        optimizer=tf.optimizers.Adam(learning_rate=base_lr, gradient_transformers=[scale_grad_by_factor]),
-                                        num_steps=100000,
+                                        optimizer=tf.keras.optimizers.Adam(learning_rate=5e-5), #, gradient_transformers=[scale_grad_by_factor]),
+                                        num_steps=num_steps,
                                         sample_size=50)
 
 plt.plot(losses)

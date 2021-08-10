@@ -21,19 +21,24 @@ sps = ['mean_field',
        'normalizing_program_mean_field',
        'normalizing_program_multivariate_normal',
        'normalizing_program_iaf',
-       'normalizing_program_highway_flow',
+       #'normalizing_program_highway_flow',
+       'gated_normalizing_program_mean_field',
+       'gated_normalizing_program_multivariate_normal',
+       'gated_normalizing_program_iaf'
        ]
 
 root_dir='results'
 results_dict = {}
 
 for model in os.listdir(root_dir):
-  if model == 'lorenz_smoothing_r':
+  if model == 'radon':
+    continue
+  if model == 'brownian_smoothing_r':
     a = 0
   model_dir=f'{root_dir}/{model}'
   results_dict[model] = {}
   for surrogate_posterior in os.listdir(model_dir):
-    if surrogate_posterior == 'normalizing_program_iaf':
+    if surrogate_posterior == 'gated_normalizing_program_iaf':
       a = 0
     results_dict[model][surrogate_posterior]={}
     surrogate_posterior_dir = f'{model_dir}/{surrogate_posterior}'
