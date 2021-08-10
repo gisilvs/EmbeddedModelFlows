@@ -40,8 +40,9 @@ stdnormal_bijector_fns = {
 gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
+  # using specific bijector for normal, use next line for generic one
   tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
-  #tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
+  # tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
@@ -205,6 +206,7 @@ def _gated_normalizing_program(prior, backbone_name, flow_params):
 def get_surrogate_posterior(prior, surrogate_posterior_name,
                             backnone_name=None, flow_params={}):
 
+  # Needed to reset the gates if running several experiments sequentially
   global residual_fraction_vars
   residual_fraction_vars = {}
 
@@ -260,6 +262,3 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     else:
       flow_params={}
     return _gated_normalizing_program(prior, backbone_name=backnone_name, flow_params=flow_params)
-
-  elif surrogate_posterior_name == "normalizing_program_iaf_sandwich":
-    return _normalizing_program(prior, backbone_name=backnone_name)
