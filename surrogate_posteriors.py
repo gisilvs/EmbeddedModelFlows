@@ -17,7 +17,8 @@ def get_residual_fraction(dist):
   if dist_name not in residual_fraction_vars:
     #print("CREATING VARIABLE")
     #print(f'{dist_name}')
-    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.999, bijector=tfb.Sigmoid(), name='residual_fraction')
+    bij = tfb.Chain([tfb.Sigmoid(), tfb.Scale(100)])
+    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.999, bijector=bij, name='residual_fraction')
   return residual_fraction_vars[dist_name]
 
 # todo: broken with radon, probably need to fix sample and/or independent
@@ -41,8 +42,8 @@ gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   # using specific bijector for normal, use next line for generic one
-  tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
-  # tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
+  #tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
+  tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
