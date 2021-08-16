@@ -88,7 +88,7 @@ surrogate_posterior_names = [#'mean_field',
                              #'normalizing_program']
                              'gated_normalizing_program']
 
-backbone_names = ['mean_field',
+backbone_names = [#'mean_field',
                   'multivariate_normal',
                   'iaf',
                   #'highway_flow'
