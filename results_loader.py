@@ -33,12 +33,12 @@ results_dict = {}
 for model in os.listdir(root_dir):
   if model == 'radon':
     continue
-  if model == 'brownian_smoothing_r':
+  if model == 'lorenz_smoothing_r':
     a = 0
   model_dir=f'{root_dir}/{model}'
   results_dict[model] = {}
   for surrogate_posterior in os.listdir(model_dir):
-    if surrogate_posterior == 'gated_normalizing_program_iaf':
+    if surrogate_posterior == 'normalizing_program_iaf':
       a = 0
     results_dict[model][surrogate_posterior]={}
     surrogate_posterior_dir = f'{model_dir}/{surrogate_posterior}'
@@ -67,11 +67,24 @@ for k, models in results_dict.items():
     bold_idx = np.argmax([models[s]["fkl"].mean() for s in sps])
     print("& FKL")
     for i, surrogate_posterior in enumerate(sps):
+
+      fkl_mean = models[surrogate_posterior]["fkl"].mean()
+      fkl_sem = models[surrogate_posterior]["fkl"].sem()
       f = ''
       if i == bold_idx:
-        f += f' & $\\boldsymbol{{{models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}}}$'
+        if np.abs(fkl_mean) >= 1e4:
+          fkl_mean = np.format_float_scientific(fkl_mean, precision=2)
+          fkl_sem = np.format_float_scientific(fkl_sem, precision=2)
+          f += f' & $\\boldsymbol{{{fkl_mean} \\pm {fkl_sem}}}$'
+        else:
+          f += f' & $\\boldsymbol{{{fkl_mean:.3f} \\pm {fkl_sem:.3f}}}$'
       else:
-        f += f' & ${models[surrogate_posterior]["fkl"].mean():.3f} \\pm {models[surrogate_posterior]["fkl"].sem():.3f}$'
+        if np.abs(fkl_mean) >= 1e4:
+          fkl_mean = np.format_float_scientific(fkl_mean, precision=2)
+          fkl_sem = np.format_float_scientific(fkl_sem, precision=2)
+          f += f' & ${fkl_mean} \\pm {fkl_sem}$'
+        else:
+          f += f' & ${fkl_mean:.3f} \\pm {fkl_sem:.3f}$'
       print(f)
 
 
