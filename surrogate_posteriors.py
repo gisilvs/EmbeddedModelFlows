@@ -26,7 +26,7 @@ stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   tfd.Normal: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
-  tfd.HalfNormal: lambda d: tfb.AbsoluteValue()(tfb.Scale(d.scale)),
+  tfd.HalfNormal: lambda d: tfb.Softplus()(tfb.Scale(d.scale)),
   tfd.MultivariateNormalDiag: lambda d: tfb.Shift(d.loc)(tfb.Scale(d.scale)),
   tfd.MultivariateNormalTriL: lambda d: tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)),
@@ -44,6 +44,7 @@ gated_stdnormal_bijector_fns = {
   # using specific bijector for normal, use next line for generic one
   #tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
   tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
+  tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale))),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
