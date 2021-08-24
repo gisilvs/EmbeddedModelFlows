@@ -128,7 +128,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(learning_rate=5e-5), # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=50,
+                                        sample_size=1,
                                         trainable_variables=surrogate_posterior.trainable_variables)
 
 #plt.plot(losses)
