@@ -72,7 +72,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28, num_observed
 
   return pixelcnn_prior, [ground_truth[i] for i in ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations # [ground_truth[i] for i in ground_truth_idx]
 
-image_side_size = 16
+image_side_size = 4
 
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train[:10%]","test"])
@@ -112,7 +112,7 @@ model.compile(
     optimizer=tfk.optimizers.Adam(.001),
     metrics=[])
 
-model.fit(train_it, epochs=10, verbose=True)
+#model.fit(train_it, epochs=10, verbose=True)
 
 samples = dist.sample(5)
 seed = 10
@@ -120,7 +120,7 @@ prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(dist.network
 
 surrogate_posterior_name = 'iaf'
 backbone_posterior_name = 'iaf'
-num_steps = 20000
+num_steps = 2
 
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
 
@@ -128,10 +128,10 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(learning_rate=5e-5), # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=50,
+                                        sample_size=2,
                                         trainable_variables=surrogate_posterior.trainable_variables)
 
-plt.plot(losses)
+#plt.plot(losses)
 #plt.show()
 elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150, seed=seed)
 fkl = forward_kl(surrogate_posterior, ground_truth)
