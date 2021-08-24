@@ -72,7 +72,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28, num_observed
 
   return pixelcnn_prior, [ground_truth[i] for i in ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations # [ground_truth[i] for i in ground_truth_idx]
 
-image_side_size = 4
+image_side_size = 8
 
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train[:10%]","test"])
@@ -112,7 +112,7 @@ model.compile(
     optimizer=tfk.optimizers.Adam(.001),
     metrics=[])
 
-#model.fit(train_it, epochs=10, verbose=True)
+model.fit(train_it, epochs=10, verbose=True)
 
 samples = dist.sample(5)
 seed = 10
