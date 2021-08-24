@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow_probability.python.experimental.bijectors import \
-  build_trainable_highway_flow
+
 from tensorflow_probability.python.internal import prefer_static as ps
 
 tfb = tfp.bijectors
@@ -11,7 +10,7 @@ tfd = tfp.distributions
 def build_highway_flow_bijector(num_layers, width,
                                 residual_fraction_initial_value, gate_first_n,
                                 seed=None):
-  bijectors = []
+  '''bijectors = []
 
   for _ in range(0, num_layers - 1):
     bijectors.append(
@@ -25,7 +24,8 @@ def build_highway_flow_bijector(num_layers, width,
                                  activation_fn=None,
                                  gate_first_n=gate_first_n, seed=seed))
 
-  return bijectors
+  return bijectors'''
+  return 0
 
 
 def build_iaf_bijector(num_hidden_units,
