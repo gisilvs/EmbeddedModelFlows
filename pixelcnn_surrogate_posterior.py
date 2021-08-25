@@ -84,7 +84,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations  # [ground_truth[i] for i in ground_truth_idx]
 
 
-image_side_size = 8
+image_side_size = 16
 
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train[:10%]", "test"])
@@ -112,7 +112,7 @@ dist = pixelcnn_original.PixelCNN(
   use_weight_norm=False,
 )
 
-'''# Define the model input
+# Define the model input
 image_input = tfkl.Input(shape=image_shape)
 
 # Define the log likelihood for the loss fn
@@ -128,7 +128,7 @@ model.compile(
   metrics=[])
 
 model.fit(train_it, epochs=10, verbose=True)
-'''
+
 samples = dist.sample(5)
 seed = 10
 prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(
