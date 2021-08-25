@@ -160,8 +160,8 @@ def _radon(seed):
     county_effect_scale = yield tfd.HalfNormal(scale=1., name='county_effect_scale')
 
     county_effect = yield tfd.Sample(
-      tfd.Normal(county_effect_mean, scale=county_effect_scale),
-      sample_shape=[num_counties], name='county_effect')
+      tfd.Normal(county_effect_mean, scale=county_effect_scale, name='county_effect'),
+      sample_shape=num_counties)
 
     uranium_weight = yield tfd.Normal(0., scale=1., name='uranium_weight')
     county_floor_weight = yield tfd.Normal(
