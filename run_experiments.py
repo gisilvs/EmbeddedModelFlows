@@ -30,8 +30,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                                           num_steps=100000,
                                           sample_size=50)
 
-  elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
-                       model_name=model_name, seed=seed)
+  elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150, seed=seed)
 
   if ground_truth is not None:
     fkl = forward_kl(surrogate_posterior, ground_truth)
