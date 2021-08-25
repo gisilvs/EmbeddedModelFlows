@@ -40,7 +40,6 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28, num_observed
   def model():
 
     sampled_image = tf.zeros([1, image_side_size,image_side_size, 1])
-    idx = 0
     for i in range(image_side_size):
       for j in range(image_side_size):
         num_logistic_mix, locs, scales = network(sampled_image)
@@ -72,7 +71,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28, num_observed
 
   return pixelcnn_prior, [ground_truth[i] for i in ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations # [ground_truth[i] for i in ground_truth_idx]
 
-image_side_size = 4
+image_side_size = 8
 
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train[:1%]","test"])
@@ -112,7 +111,7 @@ model.compile(
     optimizer=tfk.optimizers.Adam(.001),
     metrics=[])
 
-model.fit(train_it, epochs=1, verbose=True)
+model.fit(train_it, epochs=10, verbose=True)
 
 samples = dist.sample(5)
 seed = 10
@@ -120,7 +119,7 @@ prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(dist.network
 
 surrogate_posterior_name = 'multivariate_normal'
 backbone_posterior_name = 'iaf'
-num_steps = 10
+num_steps = 100
 
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
 
