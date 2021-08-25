@@ -112,7 +112,7 @@ dist = pixelcnn_original.PixelCNN(
   use_weight_norm=False,
 )
 
-# Define the model input
+'''# Define the model input
 image_input = tfkl.Input(shape=image_shape)
 
 # Define the log likelihood for the loss fn
@@ -128,7 +128,7 @@ model.compile(
   metrics=[])
 
 model.fit(train_it, epochs=10, verbose=True)
-
+'''
 samples = dist.sample(5)
 seed = 10
 prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(
