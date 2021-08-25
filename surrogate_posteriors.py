@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_highway_flow_bijector, build_iaf_bijector, build_real_nvp_bijector
+from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector
 from gate_bijector import GateBijector, GateBijectorForNormal
 
 tfd = tfp.distributions
@@ -34,8 +34,8 @@ stdnormal_bijector_fns = {
     _bijector_from_stdnormal(d.distribution)),
   tfd.Uniform: lambda d: tfb.Shift(d.low)(
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
-  tfd.Sample: lambda d: _bijector_from_stdnormal(d.distribution),
-  tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution)
+  tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
+  tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
 }
 
 gated_stdnormal_bijector_fns = {
@@ -44,7 +44,7 @@ gated_stdnormal_bijector_fns = {
   # using specific bijector for normal, use next line for generic one
   #tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
   tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
-  tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale))),
+  tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
@@ -52,10 +52,25 @@ gated_stdnormal_bijector_fns = {
     _gated_bijector_from_stdnormal(d.distribution)),
   tfd.Uniform: lambda d: GateBijector(tfb.Shift(d.low)(
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())), get_residual_fraction(d)),
-  tfd.Sample: lambda d: _gated_bijector_from_stdnormal(d.distribution),
+  tfd.Sample: lambda d: _gated_bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _gated_bijector_from_stdnormal(d.distribution)
 }
 
+stdnormal_bijector_sample_fns = {
+  tfd.Normal: lambda d: tfb.Shift(tf.reshape(d.loc, [-1,1]))(tfb.Scale(tf.reshape(d.scale, [-1,1])))
+}
+
+gated_stdnormal_bijector_sample_fns = {
+  tfd.Normal: lambda d: GateBijector(tfb.Shift(tf.reshape(d.loc, [-1,1]))(tfb.Scale(tf.reshape(d.scale, [-1,1]))), get_residual_fraction(d))
+}
+
+def _bijector_from_stdnormal_sample(dist):
+  fn = stdnormal_bijector_sample_fns[type(dist)]
+  return fn(dist)
+
+def _gated_bijector_from_stdnormal_sample(dist):
+  fn = gated_stdnormal_bijector_sample_fns[type(dist)]
+  return fn(dist)
 
 def _bijector_from_stdnormal(dist):
   fn = stdnormal_bijector_fns[type(dist)]
@@ -148,14 +163,6 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_iaf_bijector(**flow_params)
-  elif flow_name == 'highway_flow':
-    flow_params['width'] = ndims
-    flow_params['gate_first_n'] = ndims
-    flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
-  elif flow_name == 'highway_flow_no_gating':
-    flow_params['width'] = ndims
-    flow_params['gate_first_n'] = 0
-    flow_bijector = list(reversed(build_highway_flow_bijector(**flow_params)))
   if flow_name == 'real_nvp':
     #flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
@@ -228,21 +235,6 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
-  elif surrogate_posterior_name == "highway_flow":
-    flow_params = {
-      'num_layers': 3,
-      'residual_fraction_initial_value': 0.98
-    }
-    return _normalizing_flows(prior, flow_name='highway_flow',
-                              flow_params=flow_params)
-
-  elif surrogate_posterior_name == "highway_flow_no_gating":
-    flow_params = {
-      'num_layers': 3,
-      'residual_fraction_initial_value': 0.5
-    }
-    return _normalizing_flows(prior, flow_name='highway_flow_no_gating',
-                              flow_params=flow_params)
 
   elif surrogate_posterior_name == "real_nvp":
     flow_params = {
