@@ -118,7 +118,7 @@ samples = dist.sample(5)
 seed = 10
 prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(dist.network, image_side_size=image_side_size, num_observed_pixels=10, seed=seed)
 
-surrogate_posterior_name = 'iaf'
+surrogate_posterior_name = 'multivariate_normal'
 backbone_posterior_name = 'iaf'
 num_steps = 1000
 
