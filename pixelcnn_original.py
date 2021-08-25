@@ -583,7 +583,7 @@ class PixelCNN(distribution.Distribution):
     return softfloor.Softfloor(temperature=0.001)(shift_bijector(scale_bijector(sigmoid.Sigmoid())))'''
 
 
-class _PixelCNNNetwork(tf.keras.layers.Layer):
+class _PixelCNNNetwork(tf.keras.Model):
   """Keras `Layer` to parameterize a Pixel CNN++ distribution.
   This is a Keras implementation of the Pixel CNN++ network, as described in
   Salimans et al. (2017)[1] and van den Oord et al. (2016)[2].
