@@ -74,7 +74,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28, num_observed
 image_side_size = 8
 
 # Load MNIST from tensorflow_datasets
-data = tfds.load("mnist", split=["train[:1%]","test"])
+data = tfds.load("mnist", split=["train[:10%]","test"])
 train_data, test_data = data[0], data[1]
 
 def image_preprocess(x):
