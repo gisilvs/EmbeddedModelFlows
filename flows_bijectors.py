@@ -7,27 +7,6 @@ tfb = tfp.bijectors
 tfd = tfp.distributions
 
 
-def build_highway_flow_bijector(num_layers, width,
-                                residual_fraction_initial_value, gate_first_n,
-                                seed=None):
-  '''bijectors = []
-
-  for _ in range(0, num_layers - 1):
-    bijectors.append(
-      build_trainable_highway_flow(width,
-                                   residual_fraction_initial_value=residual_fraction_initial_value,
-                                   activation_fn=tf.nn.softplus,
-                                   gate_first_n=gate_first_n, seed=seed))
-  bijectors.append(
-    build_trainable_highway_flow(width,
-                                 residual_fraction_initial_value=residual_fraction_initial_value,
-                                 activation_fn=None,
-                                 gate_first_n=gate_first_n, seed=seed))
-
-  return bijectors'''
-  return 0
-
-
 def build_iaf_bijector(num_hidden_units,
                        ndims,
                        activation_fn,
