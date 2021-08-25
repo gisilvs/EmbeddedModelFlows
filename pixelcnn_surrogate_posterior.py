@@ -138,7 +138,7 @@ fkl = forward_kl(surrogate_posterior, ground_truth)
 print(f'ELBO: {elbo}')
 print(f'FORWARD_KL: {fkl}')
 
-results = {'loss': losses,
+'''results = {'loss': losses,
                'elbo': elbo,
                'fkl': fkl}
 
@@ -147,4 +147,4 @@ if not os.path.exists(repo_name):
   os.makedirs(repo_name)
 
 with open(f'{repo_name}/res.pickle', 'wb') as handle:
-  pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+  pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)'''
