@@ -120,7 +120,7 @@ prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(dist.network
 
 surrogate_posterior_name = 'multivariate_normal'
 backbone_posterior_name = 'iaf'
-num_steps = 1000
+num_steps = 2
 
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name, backbone_posterior_name)
 
@@ -128,7 +128,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(learning_rate=5e-5), # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=50,
+                                        sample_size=2,
                                         trainable_variables=surrogate_posterior.trainable_variables)
 
 #plt.plot(losses)
