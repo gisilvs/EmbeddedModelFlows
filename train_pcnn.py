@@ -13,7 +13,7 @@ train_data, test_data = data[0], data[1]
 
 def image_preprocess(x):
   x['image'] = tf.cast(x['image'], tf.float32)
-  #x['image'] = tf.image.resize(x['image'], [image_side_size, image_side_size])
+  x['image'] = tf.image.resize(x['image'], [image_side_size, image_side_size])
   return (x['image'],)  # (input, output) of the model
 
 
