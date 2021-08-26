@@ -132,6 +132,9 @@ fkl = forward_kl(surrogate_posterior, ground_truth)
 print(f'ELBO: {elbo}')
 print(f'FORWARD_KL: {fkl}')
 
+observations = [tf.squeeze(o) for o in observations.values()]
+ground_truth = [tf.squeeze(g) for g in ground_truth]
+samples = tf.convert_to_tensor(surrogate_posterior.sample(10))
 results = {'loss': losses,
            'elbo': elbo,
            'fkl': fkl,
@@ -139,7 +142,7 @@ results = {'loss': losses,
            'observations': observations,
            'ground_truth_idx': ground_truth_idx,
            'observations_idx': observations_idx,
-           'samples': surrogate_posterior.sample(10)}
+           'samples': samples}
 
 if backbone_posterior_name:
   surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_posterior_name}'
