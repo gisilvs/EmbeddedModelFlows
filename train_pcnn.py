@@ -5,7 +5,7 @@ import pixelcnn_original
 tfk = tf.keras
 tfkl = tf.keras.layers
 
-image_side_size = 28
+image_side_size = 8
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train", "test"])
 train_data, test_data = data[0], data[1]
