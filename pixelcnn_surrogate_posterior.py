@@ -97,13 +97,13 @@ dist = pixelcnn_original.PixelCNN(
   num_filters=32,
   num_logistic_mix=5,
   dropout_p=.3,
-  use_weight_norm=False,
+  use_weight_norm=True,
 )
 
-dist.network.load_weights(f'MNIST_{image_side_size}')
+dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}_wn')
 dist.network.trainable = False
 samples = dist.sample(5)
-seed = 20
+seed = 10
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
   dist.network, image_side_size=image_side_size, num_observed_pixels=10,
   seed=seed)
