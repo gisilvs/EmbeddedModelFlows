@@ -123,7 +123,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
 
 '''plt.plot(losses)
 plt.show()'''
-elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150,
+elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=10,
                      seed=seed)
 fkl = forward_kl(surrogate_posterior, ground_truth)
 print(f'ELBO: {elbo}')
