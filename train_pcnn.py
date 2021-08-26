@@ -29,7 +29,7 @@ dist = pixelcnn_original.PixelCNN(
   num_filters=32,
   num_logistic_mix=5,
   dropout_p=.3,
-  use_weight_norm=False,
+  use_weight_norm=True,
 )
 
 # Define the model input
@@ -49,4 +49,4 @@ model.compile(
 
 model.fit(train_it, epochs=20, verbose=True)
 
-dist.network.save_weights(f'MNIST_{image_side_size}/', save_format='tf')
+dist.network.save_weights(f'MNIST_{image_side_size}_wn/', save_format='tf')
