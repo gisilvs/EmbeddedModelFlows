@@ -1,2 +1,2 @@
-model_checkpoint_path: "MNIST_8"
-all_model_checkpoint_paths: "MNIST_8"
+model_checkpoint_path: "MNIST_8_wn"
+all_model_checkpoint_paths: "MNIST_8_wn"
