@@ -101,7 +101,7 @@ dist = pixelcnn_original.PixelCNN(
 )
 
 dist.network.load_weights(f'pixel_cnn_weights/MNIST_{image_side_size}')
-
+dist.network.trainable = False
 samples = dist.sample(5)
 seed = 10
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
@@ -121,8 +121,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=10,
-                                        trainable_variables=surrogate_posterior.trainable_variables)
+                                        sample_size=10)
 
 '''plt.plot(losses)
 plt.show()'''
