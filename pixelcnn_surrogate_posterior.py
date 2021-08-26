@@ -97,10 +97,10 @@ dist = pixelcnn_original.PixelCNN(
   num_filters=32,
   num_logistic_mix=5,
   dropout_p=.3,
-  use_weight_norm=False,
+  use_weight_norm=True,
 )
 
-dist.network.load_weights(f'pixel_cnn_weights/MNIST_{image_side_size}')
+dist.network.load_weights(f'pixel_cnn_weights/MNIST_{image_side_size}_wn')
 dist.network.trainable = False
 samples = dist.sample(5)
 seed = 10
