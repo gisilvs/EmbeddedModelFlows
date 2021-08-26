@@ -49,4 +49,4 @@ model.compile(
 
 model.fit(train_it, epochs=20, verbose=True)
 
-dist.network.save_weights(f'MNIST_{image_side_size}_wn/', save_format='tf')
+dist.network.save_weights(f'pcnn_weights/MNIST_{image_side_size}_wn/', save_format='tf')
