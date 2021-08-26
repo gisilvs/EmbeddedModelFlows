@@ -1,4 +1,6 @@
 import random
+import os
+import pickle
 
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -9,6 +11,7 @@ from tensorflow_probability.python.internal import prefer_static as ps
 import pixelcnn_original
 from metrics import negative_elbo, forward_kl
 from surrogate_posteriors import get_surrogate_posterior
+
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -81,7 +84,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                       i not in observations_idx]
 
   return pixelcnn_prior, [ground_truth[i] for i in
-                          ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations  # [ground_truth[i] for i in ground_truth_idx]
+                          ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
 image_side_size = 8
@@ -101,13 +104,13 @@ dist.network.load_weights(f'pixel_cnn_weights/MNIST_{image_side_size}')
 
 samples = dist.sample(5)
 seed = 10
-prior, ground_truth, target_log_prob, observations = pixelcnn_as_jd(
+prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
   dist.network, image_side_size=image_side_size, num_observed_pixels=10,
   seed=seed)
 
-surrogate_posterior_name = 'iaf'
-backbone_posterior_name = 'normalizing_program'
-num_steps = 5000
+surrogate_posterior_name = 'normalizing_program'
+backbone_posterior_name = 'iaf'
+num_steps = 10
 
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
@@ -129,13 +132,21 @@ fkl = forward_kl(surrogate_posterior, ground_truth)
 print(f'ELBO: {elbo}')
 print(f'FORWARD_KL: {fkl}')
 
-'''results = {'loss': losses,
-               'elbo': elbo,
-               'fkl': fkl}
+results = {'loss': losses,
+           'elbo': elbo,
+           'fkl': fkl,
+           'ground_truth': ground_truth,
+           'observations': observations,
+           'ground_truth_idx': ground_truth_idx,
+           'observations_idx': observations_idx,
+           'samples': surrogate_posterior.sample(10)}
+
+if backbone_posterior_name:
+  surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_posterior_name}'
 
 repo_name = f'pixelcnn/{surrogate_posterior_name}'
 if not os.path.exists(repo_name):
   os.makedirs(repo_name)
 
 with open(f'{repo_name}/res.pickle', 'wb') as handle:
-  pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)'''
+  pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
