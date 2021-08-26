@@ -1,7 +1,7 @@
 import random
 import os
 import pickle
-
+import time
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
@@ -105,7 +105,7 @@ dist.network.trainable = False
 samples = dist.sample(5)
 seed = 10
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
-  dist.network, image_side_size=image_side_size, num_observed_pixels=20,
+  dist.network, image_side_size=image_side_size, num_observed_pixels=10,
   seed=seed)
 
 surrogate_posterior_name = 'normalizing_program'
@@ -115,14 +115,15 @@ num_steps = 1000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 
+start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
-                                          learning_rate=5e-5),
+                                          learning_rate=1e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
                                         sample_size=10)
-
+print(f'Time taken: {time.time()-start}')
 '''plt.plot(losses)
 plt.show()'''
 elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=10,
@@ -130,6 +131,7 @@ elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=10,
 fkl = forward_kl(surrogate_posterior, ground_truth)
 print(f'ELBO: {elbo}')
 print(f'FORWARD_KL: {fkl}')
+
 
 observations = [tf.squeeze(o) for o in observations.values()]
 ground_truth = [tf.squeeze(g) for g in ground_truth]
