@@ -89,7 +89,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
-image_side_size = 8
+image_side_size = 14
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
