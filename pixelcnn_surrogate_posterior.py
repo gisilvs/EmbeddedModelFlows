@@ -20,7 +20,26 @@ tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
 
-def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
+
+image_side_size = 14
+image_shape = (image_side_size, image_side_size, 1)
+
+dist = pixelcnn_original.PixelCNN(
+  image_shape=image_shape,
+  num_resnet=1,
+  num_hierarchies=2,
+  num_filters=32,
+  num_logistic_mix=5,
+  dropout_p=.3,
+  use_weight_norm=False,
+)
+
+dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+dist.network.trainable = False
+samples = dist.sample(5)
+seed = 15
+
+def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
                    num_observed_pixels=5, dtype=tf.float32, seed=None):
   def sample_channels(component_logits, locs, scales, row, col):
     num_channels = 1  # so far working with 1 channel images
@@ -51,7 +70,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
     sampled_image = tf.zeros([1, image_side_size, image_side_size, 1])
     for i in range(image_side_size):
       for j in range(image_side_size):
-        num_logistic_mix, locs, scales = network(sampled_image)
+        num_logistic_mix, locs, scales = dist.network(sampled_image)
         next_pixel = sample_channels(num_logistic_mix, locs, scales, row=i,
                                      col=j)
         if i == 0 and j == 0:
@@ -86,30 +105,13 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
-image_side_size = 8
-image_shape = (image_side_size, image_side_size, 1)
-
-dist = pixelcnn_original.PixelCNN(
-  image_shape=image_shape,
-  num_resnet=1,
-  num_hierarchies=2,
-  num_filters=32,
-  num_logistic_mix=5,
-  dropout_p=.3,
-  use_weight_norm=False,
-)
-
-dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
-dist.network.trainable = False
-samples = dist.sample(5)
-seed = 15
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
   dist.network, image_side_size=image_side_size, num_observed_pixels=5,
   seed=seed)
 
 surrogate_posterior_name = 'normalizing_program'
 backbone_posterior_name = 'iaf'
-num_steps = 10000
+num_steps = 1000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 start = time.time()
