@@ -104,7 +104,6 @@ dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 dist.network.trainable = False
 samples = dist.sample(5)
 seed = 20
-print('1\n')
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
   dist.network, image_side_size=image_side_size, num_observed_pixels=10,
   seed=seed)
@@ -112,10 +111,8 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 surrogate_posterior_name = 'normalizing_program'
 backbone_posterior_name = 'iaf'
 num_steps = 1000
-print('2\n')
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
-print('3\n')
 start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
@@ -123,7 +120,8 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=10)
+                                        sample_size=10,
+                                        jit_compile=True)
 print(f'Time taken: {time.time()-start}')
 '''plt.plot(losses)
 plt.show()'''
