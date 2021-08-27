@@ -5,7 +5,7 @@ import pixelcnn_original
 tfk = tf.keras
 tfkl = tf.keras.layers
 
-image_side_size = 8
+image_side_size = 14
 # Load MNIST from tensorflow_datasets
 data = tfds.load("mnist", split=["train", "test"])
 train_data, test_data = data[0], data[1]
@@ -29,7 +29,7 @@ dist = pixelcnn_original.PixelCNN(
   num_filters=32,
   num_logistic_mix=5,
   dropout_p=.3,
-  use_weight_norm=True,
+  use_weight_norm=False,
 )
 
 # Define the model input
@@ -49,4 +49,4 @@ model.compile(
 
 model.fit(train_it, epochs=20, verbose=True)
 
-dist.network.save_weights(f'pcnn_weights/MNIST_{image_side_size}_wn/', save_format='tf')
+dist.network.save_weights(f'pcnn_weights/MNIST_{image_side_size}/', save_format='tf')
