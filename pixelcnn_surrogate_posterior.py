@@ -87,7 +87,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
-image_side_size = 8
+image_side_size = 16
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -97,13 +97,13 @@ dist = pixelcnn_original.PixelCNN(
   num_filters=32,
   num_logistic_mix=5,
   dropout_p=.3,
-  use_weight_norm=True,
+  use_weight_norm=False,
 )
 
-dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}_wn/')
+dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 dist.network.trainable = False
 samples = dist.sample(5)
-seed = 10
+seed = 20
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
   dist.network, image_side_size=image_side_size, num_observed_pixels=10,
   seed=seed)
@@ -119,7 +119,7 @@ start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
-                                          learning_rate=5e-5),
+                                        learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
                                         sample_size=10)
