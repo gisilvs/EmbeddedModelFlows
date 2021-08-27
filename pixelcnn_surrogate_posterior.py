@@ -120,8 +120,8 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=10,
-                                        jit_compile=True)
+                                        sample_size=5,
+                                        jit_compile=False)
 print(f'Time taken: {time.time()-start}')
 '''plt.plot(losses)
 plt.show()'''
