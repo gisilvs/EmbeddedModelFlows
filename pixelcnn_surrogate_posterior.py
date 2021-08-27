@@ -11,8 +11,6 @@ from tensorflow_probability.python.internal import prefer_static as ps
 import pixelcnn_original
 from metrics import negative_elbo, forward_kl
 from surrogate_posteriors import get_surrogate_posterior
-from tensorflow.keras import mixed_precision
-mixed_precision.set_global_policy('mixed_float16')
 
 
 tfd = tfp.distributions
@@ -78,8 +76,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
 
   ground_truth = model.sample(1, seed=seed)
   random.seed(seed)
-  observations_idx = sorted(random.sample(range(image_side_size ** 2),
-                                          num_observed_pixels))  # assuming squared images
+  observations_idx = sorted(tf.math.top_k(tf.squeeze(ground_truth), k=num_observed_pixels, sorted=False).indices)  # assuming squared images
   observations = {f'var{i}': ground_truth[i] for i in observations_idx}
   pixelcnn_prior = model.experimental_pin(**observations)
   ground_truth_idx = [i for i in range(image_side_size ** 2) if
@@ -89,7 +86,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
-image_side_size = 14
+image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -105,14 +102,14 @@ dist = pixelcnn_original.PixelCNN(
 dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 dist.network.trainable = False
 samples = dist.sample(5)
-seed = 20
+seed = 15
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(
-  dist.network, image_side_size=image_side_size, num_observed_pixels=10,
+  dist.network, image_side_size=image_side_size, num_observed_pixels=5,
   seed=seed)
 
 surrogate_posterior_name = 'normalizing_program'
 backbone_posterior_name = 'iaf'
-num_steps = 1000
+num_steps = 10000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 start = time.time()
@@ -122,7 +119,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=5)
+                                        sample_size=10)
 
 
 print(f'Time taken: {time.time()-start}')
