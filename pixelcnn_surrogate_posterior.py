@@ -21,7 +21,7 @@ Root = tfd.JointDistributionCoroutine.Root
 
 
 
-image_side_size = 14
+image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -95,7 +95,7 @@ def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
 
   ground_truth = model.sample(1, seed=seed)
   random.seed(seed)
-  observations_idx = sorted(tf.math.top_k(tf.squeeze(ground_truth), k=num_observed_pixels, sorted=False).indices)  # assuming squared images
+  observations_idx = sorted(tf.math.top_k(tf.squeeze(ground_truth), k=num_observed_pixels, sorted=False).indices.numpy())  # assuming squared images
   observations = {f'var{i}': ground_truth[i] for i in observations_idx}
   pixelcnn_prior = model.experimental_pin(**observations)
   ground_truth_idx = [i for i in range(image_side_size ** 2) if
@@ -110,7 +110,7 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 
 surrogate_posterior_name = 'normalizing_program'
 backbone_posterior_name = 'iaf'
-num_steps = 1000
+num_steps = 10000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 start = time.time()
