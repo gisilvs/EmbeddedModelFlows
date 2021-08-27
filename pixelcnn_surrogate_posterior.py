@@ -11,6 +11,8 @@ from tensorflow_probability.python.internal import prefer_static as ps
 import pixelcnn_original
 from metrics import negative_elbo, forward_kl
 from surrogate_posteriors import get_surrogate_posterior
+from tensorflow.keras import mixed_precision
+mixed_precision.set_global_policy('mixed_float16')
 
 
 tfd = tfp.distributions
@@ -87,7 +89,7 @@ def pixelcnn_as_jd(network, num_logistic_mix=5, image_side_size=28,
                           ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
 
 
-image_side_size = 14
+image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -114,9 +116,7 @@ num_steps = 1000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 start = time.time()
-@tf.function(jit_compile=True) # this is useful
-def fit_vi():
-  return tfp.vi.fit_surrogate_posterior(target_log_prob,
+losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
                                         learning_rate=5e-5),
@@ -124,7 +124,7 @@ def fit_vi():
                                         num_steps=num_steps,
                                         sample_size=5)
 
-losses = fit_vi()
+
 print(f'Time taken: {time.time()-start}')
 '''plt.plot(losses)
 plt.show()'''
