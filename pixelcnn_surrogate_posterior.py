@@ -19,8 +19,6 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-
-
 image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
@@ -33,10 +31,11 @@ dist = pixelcnn_original.PixelCNN(
   dropout_p=.3,
   use_weight_norm=False,
 )
+a = 0
 
-dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
-dist.network.trainable = False
-samples = dist.sample(5)
+network = dist.network
+network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+network.trainable = False
 seed = 15
 
 def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
@@ -65,12 +64,12 @@ def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
                              reinterpreted_batch_ndims=1)
 
   @tfd.JointDistributionCoroutine
-  def model():
+  def model() -> object:
 
     sampled_image = tf.zeros([1, image_side_size, image_side_size, 1])
     for i in range(image_side_size):
       for j in range(image_side_size):
-        num_logistic_mix, locs, scales = dist.network(sampled_image)
+        num_logistic_mix, locs, scales = network(sampled_image)
         next_pixel = sample_channels(num_logistic_mix, locs, scales, row=i,
                                      col=j)
         if i == 0 and j == 0:
