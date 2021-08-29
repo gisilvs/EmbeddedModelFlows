@@ -35,7 +35,6 @@ a = 0
 
 network = dist.network
 network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
-network.trainable = False
 seed = 15
 
 def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
@@ -112,6 +111,8 @@ backbone_posterior_name = 'iaf'
 num_steps = 10000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
+surrogate_posterior.sample()
+network.trainable = False
 start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
@@ -119,7 +120,11 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
-                                        sample_size=10)
+                                        sample_size=10,
+                                        trainable_variables=surrogate_posterior.trainable_variables)
+
+
+network.save_weights(f'pcnn_weights/trained_net/', save_format='tf')
 
 
 print(f'Time taken: {time.time()-start}')
