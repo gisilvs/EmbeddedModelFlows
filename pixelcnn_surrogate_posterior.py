@@ -33,7 +33,7 @@ dist = pixelcnn_original.PixelCNN(
 )
 
 network = dist.network
-#network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 seed = 15
 
 def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
@@ -107,7 +107,7 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 
 surrogate_posterior_name = 'multivariate_normal'
 backbone_posterior_name = ''
-num_steps = 100
+num_steps = 10000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
