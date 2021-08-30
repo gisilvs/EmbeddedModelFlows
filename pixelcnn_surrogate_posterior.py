@@ -113,8 +113,8 @@ surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
 network.trainable = False
+print(surrogate_posterior.trainable_variables[1])
 start = time.time()
-tf.saved_model.save(surrogate_posterior, 'initial_sp')
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
@@ -125,10 +125,9 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         trainable_variables=surrogate_posterior.trainable_variables)
 
 
-tf.saved_model.save(surrogate_posterior, 'trained_sp')
-
-
 print(f'Time taken: {time.time()-start}')
+
+print(surrogate_posterior.trainable_variables[1])
 '''plt.plot(losses)
 plt.show()'''
 elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=10,
