@@ -108,12 +108,13 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 
 surrogate_posterior_name = 'normalizing_program'
 backbone_posterior_name = 'iaf'
-num_steps = 10000
+num_steps = 100
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
 network.trainable = False
 start = time.time()
+tf.saved_model.save(surrogate_posterior, 'initial_sp')
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
@@ -124,7 +125,7 @@ losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         trainable_variables=surrogate_posterior.trainable_variables)
 
 
-network.save_weights(f'pcnn_weights/trained_net/', save_format='tf')
+tf.saved_model.save(surrogate_posterior, 'trained_sp')
 
 
 print(f'Time taken: {time.time()-start}')
