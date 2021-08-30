@@ -33,7 +33,7 @@ dist = pixelcnn_original.PixelCNN(
 )
 
 network = dist.network
-network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+#network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 seed = 15
 
 def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
