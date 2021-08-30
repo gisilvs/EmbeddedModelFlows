@@ -116,7 +116,7 @@ start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
-                                        learning_rate=5e-5),
+                                        learning_rate=1e-3),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
                                         sample_size=10,
