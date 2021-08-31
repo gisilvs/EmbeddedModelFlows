@@ -112,7 +112,7 @@ num_steps = 10000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
-trainable_variables = surrogate_posterior.trainable_variables
+trainable_variables = list(surrogate_posterior.trainable_variables)
 trainable_variables.extend(surrogate_posteriors.residual_fraction_vars)
 print(surrogate_posteriors.residual_fraction_vars)
 network.trainable = False
