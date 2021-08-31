@@ -113,7 +113,7 @@ surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
 trainable_variables = list(surrogate_posterior.trainable_variables)
-trainable_variables.extend(surrogate_posteriors.residual_fraction_vars)
+trainable_variables.extend(surrogate_posteriors.residual_fraction_vars.values())
 print(surrogate_posteriors.residual_fraction_vars)
 network.trainable = False
 start = time.time()
