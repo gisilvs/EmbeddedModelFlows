@@ -108,7 +108,7 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 
 surrogate_posterior_name = 'gated_normalizing_program'
 backbone_posterior_name = 'iaf'
-num_steps = 10000
+num_steps = 10
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
