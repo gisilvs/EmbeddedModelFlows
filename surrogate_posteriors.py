@@ -2,10 +2,12 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector
-from gate_bijector import GateBijector, GateBijectorForNormal
+from gate_bijector import GateBijector
+
 
 def normal_cdf(x, loc, scale):
-  return 0.5*(1.+tf.math.erf((x-loc)/(scale*tf.math.sqrt(2.))))
+  return 0.5 * (1. + tf.math.erf((x - loc) / (scale * tf.math.sqrt(2.))))
+
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -17,14 +19,18 @@ tfp_util = tfp.util
 # Global dict (DANGEROUS)
 residual_fraction_vars = {}
 
+
 def get_residual_fraction(dist):
   dist_name = dist.parameters['name']
   if dist_name not in residual_fraction_vars:
-    #print("CREATING VARIABLE")
-    #print(f'{dist_name}')
+    # print("CREATING VARIABLE")
+    # print(f'{dist_name}')
     bij = tfb.Chain([tfb.Sigmoid(), tfb.Scale(100)])
-    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.999, bijector=bij, name='residual_fraction')
+    residual_fraction_vars[dist_name] = tfp.util.TransformedVariable(0.999,
+                                                                     bijector=bij,
+                                                                     name='residual_fraction')
   return residual_fraction_vars[dist_name]
+
 
 # todo: broken with radon, probably need to fix sample and/or independent
 stdnormal_bijector_fns = {
@@ -41,17 +47,25 @@ stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
   tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
-  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(tf.reduce_sum(d.mixture_distribution.logits*normal_cdf(e, tf.squeeze(d.components_distribution.distribution.loc), tf.squeeze(d.components_distribution.distribution.scale)), -1), [-1,1]))),tfb.NormalCDF()])
+  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(
+    tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(
+      tf.reduce_sum(d.mixture_distribution.logits * normal_cdf(e, tf.squeeze(
+        d.components_distribution.distribution.loc), tf.squeeze(
+        d.components_distribution.distribution.scale)), -1), [-1, 1]))),
+                                              tfb.NormalCDF()])
 }
 
 gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   # using specific bijector for normal, use next line for generic one
-  #tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
-  tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
-  tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale)), get_residual_fraction(d)),
-  tfd.MultivariateNormalDiag: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
+  # tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
+  tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)),
+                                     get_residual_fraction(d)),
+  tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale)),
+                                         get_residual_fraction(d)),
+  tfd.MultivariateNormalDiag: lambda d: GateBijector(
+    tfb.Shift(d.loc)(tfb.Scale(d.scale)), get_residual_fraction(d)),
   tfd.MultivariateNormalTriL: lambda d: GateBijector(tfb.Shift(d.loc)(
     tfb.ScaleTriL(d.scale_tril)), get_residual_fraction(d)),
   tfd.TransformedDistribution: lambda d: d.bijector(
@@ -63,24 +77,30 @@ gated_stdnormal_bijector_fns = {
 }
 
 stdnormal_bijector_sample_fns = {
-  tfd.Normal: lambda d: tfb.Shift(tf.reshape(d.loc, [-1,1]))(tfb.Scale(tf.reshape(d.scale, [-1,1])))
+  tfd.Normal: lambda d: tfb.Shift(tf.reshape(d.loc, [-1, 1]))(
+    tfb.Scale(tf.reshape(d.scale, [-1, 1])))
 }
 
 gated_stdnormal_bijector_sample_fns = {
-  tfd.Normal: lambda d: GateBijector(tfb.Shift(tf.reshape(d.loc, [-1,1]))(tfb.Scale(tf.reshape(d.scale, [-1,1]))), get_residual_fraction(d))
+  tfd.Normal: lambda d: GateBijector(tfb.Shift(tf.reshape(d.loc, [-1, 1]))(
+    tfb.Scale(tf.reshape(d.scale, [-1, 1]))), get_residual_fraction(d))
 }
+
 
 def _bijector_from_stdnormal_sample(dist):
   fn = stdnormal_bijector_sample_fns[type(dist)]
   return fn(dist)
 
+
 def _gated_bijector_from_stdnormal_sample(dist):
   fn = gated_stdnormal_bijector_sample_fns[type(dist)]
   return fn(dist)
 
+
 def _bijector_from_stdnormal(dist):
   fn = stdnormal_bijector_fns[type(dist)]
   return fn(dist)
+
 
 def _gated_bijector_from_stdnormal(dist):
   fn = gated_stdnormal_bijector_fns[type(dist)]
@@ -91,6 +111,7 @@ class AutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
 
   def __init__(self, dist):
     return super().__init__(dist, bijector_fn=_bijector_from_stdnormal)
+
 
 class GatedAutoFromNormal(tfd.joint_distribution._DefaultJointBijector):
 
@@ -157,10 +178,12 @@ def _multivariate_normal(prior):
     tfd.Normal(tf.zeros([], dtype), 1.), sample_shape=[ndims])
   op = make_trainable_linear_operator_tril(ndims)
 
-  prior_matching_bijectors.extend([tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
-    tfb.ScaleMatvecLinearOperator(op)])
+  prior_matching_bijectors.extend(
+    [tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
+     tfb.ScaleMatvecLinearOperator(op)])
 
-  return tfd.TransformedDistribution(base_dist, tfb.Chain(prior_matching_bijectors))
+  return tfd.TransformedDistribution(base_dist,
+                                     tfb.Chain(prior_matching_bijectors))
 
 
 def _asvi(prior):
@@ -179,7 +202,7 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['ndims'] = ndims
     flow_bijector = build_iaf_bijector(**flow_params)
   if flow_name == 'real_nvp':
-    #flow_params['dtype'] = dtype
+    # flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_real_nvp_bijector(**flow_params)
 
@@ -201,6 +224,7 @@ def _normalizing_program(prior, backbone_name, flow_params):
     distribution=backbone_surrogate_posterior,
     bijector=bijector
   )
+
 
 def _gated_normalizing_program(prior, backbone_name, flow_params):
   '''for d in prior._get_single_sample_distributions():
@@ -226,10 +250,8 @@ def _gated_normalizing_program(prior, backbone_name, flow_params):
   )
 
 
-
 def get_surrogate_posterior(prior, surrogate_posterior_name,
                             backnone_name=None, flow_params={}):
-
   # Needed to reset the gates if running several experiments sequentially
   global residual_fraction_vars
   residual_fraction_vars = {}
@@ -256,18 +278,21 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       'num_flow_layers': 2,
       'num_hidden_units': 512
     }
-    return _normalizing_flows(prior, flow_name='real_nvp', flow_params=flow_params)
+    return _normalizing_flows(prior, flow_name='real_nvp',
+                              flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
-    if backnone_name=='iaf':
-      flow_params = {'activation_fn':tf.nn.relu}
+    if backnone_name == 'iaf':
+      flow_params = {'activation_fn': tf.nn.relu}
     else:
-      flow_params={}
-    return _normalizing_program(prior, backbone_name=backnone_name, flow_params=flow_params)
+      flow_params = {}
+    return _normalizing_program(prior, backbone_name=backnone_name,
+                                flow_params=flow_params)
 
   elif surrogate_posterior_name == "gated_normalizing_program":
-    if backnone_name=='iaf':
-      flow_params = {'activation_fn':tf.nn.relu}
+    if backnone_name == 'iaf':
+      flow_params = {'activation_fn': tf.nn.relu}
     else:
-      flow_params={}
-    return _gated_normalizing_program(prior, backbone_name=backnone_name, flow_params=flow_params)
+      flow_params = {}
+    return _gated_normalizing_program(prior, backbone_name=backnone_name,
+                                      flow_params=flow_params)
