@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 8
+image_side_size = 14
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
