@@ -36,6 +36,9 @@ stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
   tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
+  #tfd.MixtureSameFamily: lambda d: tfb.Scale(d.mixture_distribution.logits)(tfb.Shift(d.components_distribution.distribution.loc)(tfb.Scale(d.components_distribution.distribution.scale))) # Specific to our case with Gaussians
+  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(tfe.bijectors.ScalarFunctionWithInferredInverse(
+    lambda e: tf.reshape(tf.reduce_sum(d.mixture_distribution.logits*(tf.squeeze(d.components_distribution.distribution.loc)+(tf.linalg.matvec(d.components_distribution.distribution.scale,tf.reshape(e, [-1,1])))), -1),[-1,1]))),tfb.NormalCDF()])
 }
 
 gated_stdnormal_bijector_fns = {
@@ -96,7 +99,10 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
   event_shape = prior.event_shape_tensor()
   flat_event_shape = tf.nest.flatten(event_shape)
   flat_event_size = tf.nest.map_structure(tf.reduce_prod, flat_event_shape)
-  event_space_bijector = prior.experimental_default_event_space_bijector()
+  try:
+    event_space_bijector = prior.experimental_default_event_space_bijector()
+  except:
+    event_space_bijector = None
 
   split_bijector = tfb.Split(flat_event_size)
   unflatten_bijector = tfb.Restructure(
@@ -105,8 +111,14 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
   reshape_bijector = tfb.JointMap(
     tf.nest.map_structure(tfb.Reshape, flat_event_shape))
 
-  prior_matching_bijectors = [event_space_bijector, unflatten_bijector,
-                              reshape_bijector, split_bijector]
+  if event_space_bijector:
+
+    prior_matching_bijectors = [event_space_bijector, unflatten_bijector,
+                                reshape_bijector, split_bijector]
+
+  else:
+    prior_matching_bijectors = [unflatten_bijector,
+                                reshape_bijector, split_bijector]
 
   dtype = tf.nest.flatten(prior.dtype)[0]
 
@@ -230,7 +242,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "iaf":
     flow_params['num_flow_layers'] = 2
-    flow_params['num_hidden_units'] = 8
+    flow_params['num_hidden_units'] = 512
     if 'activation_fn' not in flow_params:
       flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)

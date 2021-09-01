@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 14
+image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -34,34 +34,20 @@ dist = pixelcnn_original.PixelCNN(
 )
 
 network = dist.network
-#network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 seed = 15
 
-def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
-                   num_observed_pixels=5, dtype=tf.float32, seed=None):
+def pixelcnn_as_jd(image_side_size=28,
+                   num_observed_pixels=5, seed=None):
   def sample_channels(component_logits, locs, scales, row, col):
-    num_channels = 1  # so far working with 1 channel images
-    component_dist = tfd.Categorical(logits=component_logits)
-    mask = tf.one_hot(indices=component_dist.sample(seed=seed),
-                      depth=num_logistic_mix)
-    mask = tf.cast(mask[..., tf.newaxis], dtype)
-
-    # apply mixture component mask and separate out RGB parameters
-    masked_locs = tf.reduce_sum(locs * mask, axis=-2)
-    loc_tensors = tf.split(masked_locs, num_channels, axis=-1)
-    masked_scales = tf.reduce_sum(scales * mask, axis=-2)
-    scale_tensors = tf.split(masked_scales, num_channels, axis=-1)
     if row == 0 and col == 0:
-      return tfd.Independent(tfd.Normal(loc=loc_tensors[0][0, row, col],
-                                        scale=scale_tensors[0][0, row, col],
-                                        name=f"pixel_{row}_{col}"),
-                             reinterpreted_batch_ndims=1)
+      return tfd.MixtureSameFamily(mixture_distribution=tfd.Categorical(logits=component_logits[0, row, col]),
+                                   components_distribution=tfd.Independent(tfd.Normal(loc=locs[0, row, col], scale=scales[0, row, col]), reinterpreted_batch_ndims=1),
+                                   name=f"pixel_{row}_{col}")
     else:
-      return tfd.Independent(tfd.Normal(loc=loc_tensors[0][:, row, col],
-                                        scale=scale_tensors[0][:, row, col],
-                                        name=f"pixel_{row}_{col}"),
-                             reinterpreted_batch_ndims=1)
-
+      return tfd.MixtureSameFamily(mixture_distribution=tfd.Categorical(logits=component_logits[:, row, col]),
+                                   components_distribution=tfd.Independent(tfd.Normal(loc=locs[:, row, col], scale=scales[:, row, col]), reinterpreted_batch_ndims=1),
+                                   name=f"pixel_{row}_{col}")
   @tfd.JointDistributionCoroutine
   def model() -> object:
 
@@ -94,7 +80,7 @@ def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
   ground_truth = model.sample(1, seed=seed)
   random.seed(seed)
   observations_idx = sorted(tf.math.top_k(tf.squeeze(ground_truth), k=num_observed_pixels, sorted=False).indices.numpy())  # assuming squared images
-  observations = {f'var{i}': ground_truth[i] for i in observations_idx}
+  observations = {f'pixel_{i//image_side_size}_{i%image_side_size}': ground_truth[i] for i in observations_idx}
   pixelcnn_prior = model.experimental_pin(**observations)
   ground_truth_idx = [i for i in range(image_side_size ** 2) if
                       i not in observations_idx]
@@ -106,8 +92,8 @@ def pixelcnn_as_jd(num_logistic_mix=5, image_side_size=28,
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(image_side_size=image_side_size, num_observed_pixels=5,
   seed=seed)
 
-surrogate_posterior_name = 'iaf'
-backbone_posterior_name = ''
+surrogate_posterior_name = 'normalizing_program'
+backbone_posterior_name = 'iaf'
 num_steps = 10
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
