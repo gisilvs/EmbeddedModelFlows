@@ -230,7 +230,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "iaf":
     flow_params['num_flow_layers'] = 2
-    flow_params['num_hidden_units'] = 8
+    flow_params['num_hidden_units'] = 512
     if 'activation_fn' not in flow_params:
       flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
