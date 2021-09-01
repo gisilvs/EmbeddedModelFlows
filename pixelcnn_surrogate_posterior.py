@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 14
+image_side_size = 28
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -94,7 +94,7 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
 
 surrogate_posterior_name = 'multivariate_normal'
 backbone_posterior_name = ''
-num_steps = 1000
+num_steps = 100
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
