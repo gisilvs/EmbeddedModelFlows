@@ -22,13 +22,15 @@ learning_rates = {'mean_field': 1e-3,
 
 
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
-                           ground_truth, learning_rate, i, seed):
+                           ground_truth, observations, learning_rate, i, seed):
 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
                                           num_steps=100000,
                                           sample_size=50)
+
+  samples = surrogate_posterior.sample(150)
 
   elbo = negative_elbo(target_log_prob, surrogate_posterior, num_samples=150, seed=seed)
 
@@ -42,16 +44,23 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                'elbo':elbo,
                'fkl':fkl,
                'residual_fraction_vars': surrogate_posteriors.residual_fraction_vars,
+               'ground_truth': ground_truth,
+               'observations': observations,
+               'samples': samples,
                }
   else:
     results = {'loss': losses,
                'elbo': elbo,
-               'fkl': fkl}
+               'fkl': fkl,
+               'ground_truth': ground_truth,
+               'observations': observations,
+               'samples': samples,
+               }
 
   if backbone_name:
     surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
 
-  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
+  repo_name = f'results_with_samples/{model_name}/{surrogate_posterior_name}'
   if not os.path.exists(repo_name):
     os.makedirs(repo_name)
 
@@ -60,41 +69,43 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
 
   print(f'{model_name} {surrogate_posterior_name} rep{i} done!')
 
-if not os.path.exists('results'):
-  os.makedirs('results')
+if not os.path.exists('results_with_samples'):
+  os.makedirs('results_with_samples')
 
 #todo: test more radon
-model_names = ['eight_schools',
+model_names = [#'eight_schools',
                #'radon',
-               'brownian_smoothing_r',
-               'brownian_smoothing_c',
-               'brownian_bridge_r',
-               'brownian_bridge_c',
+               #'brownian_smoothing_r',
+               #'brownian_smoothing_c',
+               #'brownian_bridge_r',
+               #'brownian_bridge_c',
                'lorenz_smoothing_r',
                'lorenz_smoothing_c',
                'lorenz_bridge_r',
                'lorenz_bridge_c',
-               'linear_binary_tree_4',
-               'linear_binary_tree_8',
-               'tanh_binary_tree_4',
-               'tanh_binary_tree_8',
+               #'linear_binary_tree_4',
+               #'linear_binary_tree_8',
+               #'tanh_binary_tree_4',
+               #'tanh_binary_tree_8',
                ]
 
 surrogate_posterior_names = [#'mean_field',
                              #'multivariate_normal',
                              #'asvi',
-                             #'iaf',
-                             #'normalizing_program']
-                             'gated_normalizing_program']
+                             'iaf',
+                             'normalizing_program',
+                             'gated_normalizing_program'
+]
 
-backbone_names = ['mean_field',
+backbone_names = [#'mean_field',
                   #'multivariate_normal',
-                  #'iaf',
+                  'iaf',
                   #'highway_flow'
 ]
 
 
-seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+#seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+seeds = [10, 30, 50, 70, 90]
 
 for i in range(10):
   for model_name in model_names:
@@ -111,7 +122,8 @@ for i in range(10):
                                  backbone_name=backbone_name,
                                  surrogate_posterior=surrogate_posterior,
                                  target_log_prob=target_log_prob,
-                                 ground_truth=ground_truth, learning_rate=learning_rates[backbone_name], i=i, seed=seeds[i])
+                                 ground_truth=ground_truth, observations=observations,
+                                 learning_rate=learning_rates[backbone_name], i=i, seed=seeds[i])
 
       else:
         surrogate_posterior = get_surrogate_posterior(prior,
@@ -122,6 +134,7 @@ for i in range(10):
                                backbone_name=None,
                                surrogate_posterior=surrogate_posterior,
                                target_log_prob=target_log_prob,
-                               ground_truth=ground_truth, learning_rate=learning_rates[surrogate_posterior_name], i=i, seed=seeds[i])
+                               ground_truth=ground_truth, observations=observations,
+                               learning_rate=learning_rates[surrogate_posterior_name], i=i, seed=seeds[i])
 
 # todo: how do I save a fitted surrogate posterior (as if it was a neural network?)
