@@ -92,8 +92,8 @@ def pixelcnn_as_jd(image_side_size=28,
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(image_side_size=image_side_size, num_observed_pixels=5,
   seed=seed)
 
-surrogate_posterior_name = 'normalizing_program'
-backbone_posterior_name = 'iaf'
+surrogate_posterior_name = 'iaf'
+backbone_posterior_name = ''
 num_steps = 1000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
