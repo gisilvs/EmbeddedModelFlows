@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 14
+image_side_size = 8
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -93,7 +93,7 @@ prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observati
   seed=seed)
 
 surrogate_posterior_name = 'normalizing_program'
-backbone_posterior_name = 'multivariate_normal'
+backbone_posterior_name = 'iaf'
 num_steps = 1000
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
@@ -106,7 +106,7 @@ start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
-                                        learning_rate=1e-3),
+                                        learning_rate=1e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
                                         sample_size=10,
