@@ -44,17 +44,17 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                'elbo':elbo,
                'fkl':fkl,
                'residual_fraction_vars': surrogate_posteriors.residual_fraction_vars,
-               'ground_truth': ground_truth,
-               'observations': observations,
-               'samples': samples,
+               'ground_truth':tf.convert_to_tensor(ground_truth),
+               'observations': tf.convert_to_tensor(observations),
+               'samples': tf.convert_to_tensor(samples),
                }
   else:
     results = {'loss': losses,
                'elbo': elbo,
                'fkl': fkl,
-               'ground_truth': ground_truth,
-               'observations': observations,
-               'samples': samples,
+               'ground_truth': tf.convert_to_tensor(ground_truth),
+               'observations': tf.convert_to_tensor(observations),
+               'samples': tf.convert_to_tensor(samples),
                }
 
   if backbone_name:
