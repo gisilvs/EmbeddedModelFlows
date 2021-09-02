@@ -13,8 +13,12 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 tfe = tfp.experimental
 tfp_util = tfp.util
-'''tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(tfe.bijectors.ScalarFunctionWithInferredInverse(
-    lambda e: tf.reshape(tf.reduce_sum(d.mixture_distribution.logits*(tf.squeeze(d.components_distribution.distribution.loc)+(tf.linalg.matvec(d.components_distribution.distribution.scale,tf.reshape(e, [-1,1])))), -1),[-1,1]))),tfb.NormalCDF()])'''
+'''tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(
+    tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(
+      tf.reduce_sum(d.mixture_distribution.logits * normal_cdf(e, tf.squeeze(
+        d.components_distribution.distribution.loc), tf.squeeze(
+        d.components_distribution.distribution.scale)), -1), [-1, 1]))),
+                                              tfb.NormalCDF()])'''
 
 # Global dict (DANGEROUS)
 residual_fraction_vars = {}
@@ -47,12 +51,7 @@ stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
   tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
-  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(
-    tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(
-      tf.reduce_sum(d.mixture_distribution.logits * normal_cdf(e, tf.squeeze(
-        d.components_distribution.distribution.loc), tf.squeeze(
-        d.components_distribution.distribution.scale)), -1), [-1, 1]))),
-                                              tfb.NormalCDF()])
+  tfd.MixtureSameFamily: lambda d: tfb.Identity()
 }
 
 gated_stdnormal_bijector_fns = {
