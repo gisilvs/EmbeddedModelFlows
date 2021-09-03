@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 4
+image_side_size = 14
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -34,7 +34,7 @@ dist = pixelcnn_original.PixelCNN(
 )
 
 network = dist.network
-#network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 seed = 15
 
 def pixelcnn_as_jd(image_side_size=28,
