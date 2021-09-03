@@ -128,7 +128,7 @@ def pixelcnn_as_jd(image_side_size=28,
   ground_truth_idx = [i for i in range(image_side_size ** 2) if
                       i not in observations_idx]
 
-  def log_prob(samples):
+  def log_prob(*samples):
     batch_size = ps.shape(samples[0])[0]
     s = tf.squeeze(tf.convert_to_tensor(samples), -1)
     o = tf.repeat(tf.expand_dims(tf.convert_to_tensor(observations), axis=1),
