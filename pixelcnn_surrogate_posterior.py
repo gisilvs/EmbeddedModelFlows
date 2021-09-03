@@ -31,14 +31,17 @@ dist = pixelcnn_original.PixelCNN(
   num_logistic_mix=5,
   dropout_p=.3,
   use_weight_norm=False,
+  low=-1,
+  high=1
 )
 
-network = dist.network
-network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
+
+dist.network.load_weights(f'pcnn_weights/MNIST_{image_side_size}/')
 seed = 15
 
 def pixelcnn_as_jd(image_side_size=28,
                    num_observed_pixels=5, seed=None):
+
   @tf.function
   def forward_step(sampled_image, s, update_idxs):
     if tf.is_tensor(s):
@@ -49,7 +52,7 @@ def pixelcnn_as_jd(image_side_size=28,
                                                   update_idxs,
                                                   tf.unstack(s))
 
-    num_logistic_mix, locs, scales = network(sampled_image)
+    num_logistic_mix, locs, scales = dist.network(sampled_image)
 
     return sampled_image, num_logistic_mix, locs, scales
 
@@ -121,11 +124,20 @@ def pixelcnn_as_jd(image_side_size=28,
   observations_idx = sorted(tf.math.top_k(tf.squeeze(ground_truth), k=num_observed_pixels, sorted=False).indices.numpy())  # assuming squared images
   observations = {f'pixel_{i//image_side_size}_{i%image_side_size}': ground_truth[i] for i in observations_idx}
   pixelcnn_prior = model.experimental_pin(**observations)
+  observations = [tf.squeeze(o) for o in observations.values()]
   ground_truth_idx = [i for i in range(image_side_size ** 2) if
                       i not in observations_idx]
 
+  def log_prob(samples):
+    batch_size = ps.shape(samples[0])[0]
+    s = tf.squeeze(tf.convert_to_tensor(samples), -1)
+    o = tf.repeat(tf.expand_dims(tf.convert_to_tensor(observations), axis=1),
+                  batch_size, 1)
+    image_tensor = tf.reshape(tf.transpose(tf.clip_by_value(tf.dynamic_stitch([ground_truth_idx, observations_idx], [s,o]), -1,1), [1,0]), [-1, image_side_size, image_side_size])
+    return dist.log_prob(tf.expand_dims(image_tensor, -1))
+
   return pixelcnn_prior, [ground_truth[i] for i in
-                          ground_truth_idx], pixelcnn_prior.unnormalized_log_prob, observations, ground_truth_idx, observations_idx
+                          ground_truth_idx], log_prob, observations, ground_truth_idx, observations_idx
 
 
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(image_side_size=image_side_size, num_observed_pixels=5,
@@ -140,7 +152,7 @@ surrogate_posterior.sample()
 trainable_variables = list(surrogate_posterior.trainable_variables)
 trainable_variables.extend(surrogate_posteriors.residual_fraction_vars.values())
 print(surrogate_posteriors.residual_fraction_vars)
-network.trainable = False
+dist.network.trainable = False
 start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
@@ -162,7 +174,6 @@ print(f'ELBO: {elbo}')
 print(f'FORWARD_KL: {fkl}')
 
 
-observations = [tf.squeeze(o) for o in observations.values()]
 ground_truth = [tf.squeeze(g) for g in ground_truth]
 samples = tf.convert_to_tensor(surrogate_posterior.sample(10))
 results = {'loss': losses,
