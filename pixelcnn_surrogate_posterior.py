@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tf.keras.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-image_side_size = 8
+image_side_size = 14
 image_shape = (image_side_size, image_side_size, 1)
 
 dist = pixelcnn_original.PixelCNN(
@@ -39,6 +39,21 @@ seed = 15
 
 def pixelcnn_as_jd(image_side_size=28,
                    num_observed_pixels=5, seed=None):
+  @tf.function
+  def forward_step(sampled_image, s, update_idxs):
+    if tf.is_tensor(s):
+      s = tf.clip_by_value(s, -1., 1.)
+      if len(ps.shape(s)) <= 1:
+        s = [s]
+      sampled_image = tf.tensor_scatter_nd_update(sampled_image,
+                                                  update_idxs,
+                                                  tf.unstack(s))
+
+    num_logistic_mix, locs, scales = network(sampled_image)
+
+    return sampled_image, num_logistic_mix, locs, scales
+
+
   def sample_channels(component_logits, locs, scales, row, col):
     if row == 0 and col == 0:
       return tfd.MixtureSameFamily(mixture_distribution=tfd.Categorical(logits=component_logits[0, row, col]),
@@ -48,7 +63,31 @@ def pixelcnn_as_jd(image_side_size=28,
       return tfd.MixtureSameFamily(mixture_distribution=tfd.Categorical(logits=component_logits[:, row, col]),
                                    components_distribution=tfd.Independent(tfd.Normal(loc=locs[:, row, col], scale=scales[:, row, col]), reinterpreted_batch_ndims=1),
                                    name=f"pixel_{row}_{col}")
+
   @tfd.JointDistributionCoroutine
+  def model() -> object:
+
+    sampled_image = tf.zeros([1, image_side_size, image_side_size, 1])
+    s = None
+    batch_size = 0
+    for i in range(image_side_size):
+      for j in range(image_side_size):
+        sampled_image, num_logistic_mix, locs, scales = forward_step(sampled_image, s, [[b, i, j] for b in
+                                                   range(batch_size)])
+        next_pixel = sample_channels(num_logistic_mix, locs, scales, row=i,
+                                     col=j)
+        if i == 0 and j == 0:
+          s = yield Root(next_pixel)
+          if len(ps.shape(s)) > 1:
+            batch_size = ps.shape(s)[0]
+            sampled_image = tf.repeat(sampled_image, batch_size, 0)
+          else:
+            batch_size = 1
+        else:
+          s = yield next_pixel
+        if ps.shape(s)[0] < batch_size:
+          s = tf.repeat(s, batch_size, 0)
+  '''@tfd.JointDistributionCoroutine
   def model() -> object:
 
     sampled_image = tf.zeros([1, image_side_size, image_side_size, 1])
@@ -75,7 +114,7 @@ def pixelcnn_as_jd(image_side_size=28,
                                                     [[b, i, j] for b in
                                                      range(batch_size)],
                                                     [s[c] for c in
-                                                     range(batch_size)])
+                                                     range(batch_size)])'''
 
   ground_truth = model.sample(1, seed=seed)
   random.seed(seed)
@@ -92,9 +131,9 @@ def pixelcnn_as_jd(image_side_size=28,
 prior, ground_truth, target_log_prob, observations,  ground_truth_idx, observations_idx = pixelcnn_as_jd(image_side_size=image_side_size, num_observed_pixels=5,
   seed=seed)
 
-surrogate_posterior_name = 'normalizing_program'
-backbone_posterior_name = 'iaf'
-num_steps = 1000
+surrogate_posterior_name = 'iaf'
+backbone_posterior_name = ''
+num_steps = 100
 surrogate_posterior = get_surrogate_posterior(prior, surrogate_posterior_name,
                                               backbone_posterior_name)
 surrogate_posterior.sample()
@@ -106,7 +145,7 @@ start = time.time()
 losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                         surrogate_posterior,
                                         optimizer=tf.keras.optimizers.Adam(
-                                        learning_rate=1e-5),
+                                        learning_rate=5e-5),
                                         # , gradient_transformers=[scale_grad_by_factor]),
                                         num_steps=num_steps,
                                         sample_size=10,
