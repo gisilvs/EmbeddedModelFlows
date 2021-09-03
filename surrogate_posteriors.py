@@ -51,7 +51,7 @@ stdnormal_bijector_fns = {
     tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(
       tf.reduce_sum(d.mixture_distribution.logits * normal_cdf(e, tf.squeeze(
         d.components_distribution.distribution.loc), tf.squeeze(
-        d.components_distribution.distribution.scale)), -1), [-1, 1]))),
+        d.components_distribution.distribution.scale)), -1), [-1, 1]), max_iterations=15)),
                                               tfb.NormalCDF()])
 }
 
