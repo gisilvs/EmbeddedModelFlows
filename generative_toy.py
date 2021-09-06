@@ -16,7 +16,7 @@ Root = tfd.JointDistributionCoroutine.Root
 
 n_components = 100
 n_dims = 2
-initial_scale = 1.
+initial_scale = .1
 model_name = 'np_maf'
 
 component_logits = tf.Variable([[1./n_components for _ in range(n_components)] for _ in
