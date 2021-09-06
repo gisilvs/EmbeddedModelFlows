@@ -102,12 +102,14 @@ def train(model, n_components, initial_scale):
   plt.plot(train_loss_results)
   plt.savefig(f'loss_{name}.png',
               format="png")
+  plt.clf()
   component_logits = tf.convert_to_tensor(component_logits)
   locs = tf.convert_to_tensor(locs)
   scales = tf.convert_to_tensor(scales)
   plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
                   mesh_count=200,
                   name=f'density_{name}.png')
+  plt.clf()
   print(f'{name} done!')
 
 models = ['maf', 'np_maf', 'sandwich']
