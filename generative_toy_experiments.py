@@ -108,6 +108,7 @@ def train(model, n_components, initial_scale):
   plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
                   mesh_count=200,
                   name=f'density_{name}.png')
+  print(f'{name} done!')
 
 models = ['maf', 'np_maf', 'sandwich']
 
