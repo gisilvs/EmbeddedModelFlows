@@ -19,6 +19,7 @@ n = 1000
 X, _ = generate_2d_data('8gaussians', batch_size=n)
 n_dims = 2
 
+@tf.function
 def grad(model, inputs, trainable_variables):
   with tf.GradientTape() as tape:
     loss = -model.log_prob(inputs)
