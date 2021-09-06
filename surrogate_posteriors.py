@@ -3,6 +3,8 @@ import tensorflow_probability as tfp
 
 from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector
 from gate_bijector import GateBijector
+from mixture_of_gaussian_bijector import MixtureOfGaussians
+from tensorflow_probability.python.internal import prefer_static as ps
 
 
 def normal_cdf(x, loc, scale):
@@ -13,12 +15,6 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 tfe = tfp.experimental
 tfp_util = tfp.util
-'''tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(
-    tfe.bijectors.ScalarFunctionWithInferredInverse(lambda e: tf.reshape(
-      tf.reduce_sum(d.mixture_distribution.logits * normal_cdf(e, tf.squeeze(
-        d.components_distribution.distribution.loc), tf.squeeze(
-        d.components_distribution.distribution.scale)), -1), [-1, 1]), max_iterations=15)),
-                                              tfb.NormalCDF()])'''
 
 # Global dict (DANGEROUS)
 residual_fraction_vars = {}
@@ -51,8 +47,7 @@ stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
   tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
-  tfd.MixtureSameFamily: lambda d: tfb.Identity()
-
+  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(MixtureOfGaussians(d)), tfb.NormalCDF()])
 }
 
 gated_stdnormal_bijector_fns = {
@@ -201,6 +196,10 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_iaf_bijector(**flow_params)
+  if flow_name == 'maf':
+    flow_params['dtype'] = dtype
+    flow_params['ndims'] = ndims
+    flow_bijector = build_iaf_bijector(**flow_params)
   if flow_name == 'real_nvp':
     # flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
@@ -224,6 +223,34 @@ def _normalizing_program(prior, backbone_name, flow_params):
     distribution=backbone_surrogate_posterior,
     bijector=bijector
   )
+
+def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
+
+  base_distribution = tfd.Sample(
+    tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
+
+  flow_params = {'activation_fn': tf.nn.relu}
+  flow_params['dtype'] = dtype
+  flow_params['ndims'] = ndims
+  flow_params['num_flow_layers'] = num_layers_per_flow
+  flow_params['num_hidden_units'] = 512
+  flow_params['is_iaf'] = False
+  flow_bijector_pre = build_iaf_bijector(**flow_params)
+  flow_bijector_post = build_iaf_bijector(**flow_params)
+  make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
+  normalizing_program = AutoFromNormal(prior)
+  prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
+
+  bijector = tfb.Chain([prior_matching_bijectors,flow_bijector_post[0], make_swap(), tfb.Invert(prior_matching_bijectors), normalizing_program, prior_matching_bijectors, flow_bijector_pre[0]])
+
+  backbone_surrogate_posterior = tfd.TransformedDistribution(
+    distribution=base_distribution,
+    bijector=bijector
+  )
+
+  return backbone_surrogate_posterior
 
 
 def _gated_normalizing_program(prior, backbone_name, flow_params):
@@ -272,6 +299,14 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
+  elif surrogate_posterior_name == "maf":
+    flow_params['num_flow_layers'] = 2
+    flow_params['num_hidden_units'] = 512
+    flow_params['is_iaf'] = False
+    if 'activation_fn' not in flow_params:
+      flow_params['activation_fn'] = tf.math.tanh
+    return _normalizing_flows(prior, flow_name='maf', flow_params=flow_params)
+
 
   elif surrogate_posterior_name == "real_nvp":
     flow_params = {
@@ -283,6 +318,8 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "normalizing_program":
     if backnone_name == 'iaf':
+      flow_params = {'activation_fn': tf.nn.relu}
+    elif backnone_name == 'maf':
       flow_params = {'activation_fn': tf.nn.relu}
     else:
       flow_params = {}
