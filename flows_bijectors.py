@@ -11,7 +11,7 @@ def build_iaf_bijector(num_hidden_units,
                        ndims,
                        activation_fn,
                        dtype,
-                       num_flow_layers=2,):
+                       num_flow_layers=2, is_iaf=True):
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
   def make_maf():
@@ -26,7 +26,8 @@ def build_iaf_bijector(num_hidden_units,
         [tfb.Shift(net(x)[Ellipsis, 0]),  # pylint: disable=g-long-lambda
          tfb.Scale(log_scale=net(x)[Ellipsis, 1])]))
 
-    maf = tfb.Invert(maf)
+    if is_iaf:
+      maf = tfb.Invert(maf)
     # To track the variables
     maf._net = net  # pylint: disable=protected-access
     return maf
