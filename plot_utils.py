@@ -65,4 +65,4 @@ def plot_heatmap_2d(dist, matching_bijector=None, xmin=-4.0, xmax=4.0, ymin=-4.0
   ax.imshow(tf.transpose(tf.reshape(prob, (mesh_count, mesh_count))),
              aspect="equal")
   if name:
-    fig.savefig(name format="png")
+    fig.savefig(name, format="png")
