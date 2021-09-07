@@ -1,9 +1,12 @@
+import os
+import pickle
+
 import tensorflow as tf
 import tensorflow_probability as tfp
 
 from toy_data import generate_2d_data
 import surrogate_posteriors
-from plot_utils import plot_heatmap_2d
+from plot_utils import plot_heatmap_2d, plot_samples
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,9 +17,8 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 10000
-n = 1000
-X, _ = generate_2d_data('8gaussians', batch_size=n)
+num_epochs = 1
+n = int(1e6)
 n_dims = 2
 
 @tf.function
@@ -25,9 +27,8 @@ def grad(model, inputs, trainable_variables):
     loss = -model.log_prob(inputs)
   return loss, tape.gradient(loss, trainable_variables)
 
-def train(model, n_components, initial_scale):
-  if model == 'maf':
-    name = model
+def train(model, n_components, initial_scale, X, name, save_dir):
+  if model in ['maf', 'np_maf_fixed', 'sandwich_fixed']:
     component_logits = tf.convert_to_tensor(
       [[1. / n_components for _ in range(n_components)] for _ in
        range(n_dims)])
@@ -46,8 +47,6 @@ def train(model, n_components, initial_scale):
       [[initial_scale for _ in range(n_components)] for _ in
        range(n_dims)], tfb.Softplus())
 
-    name = f'c{n_components}_s{initial_scale}_{model}'
-
   @tfd.JointDistributionCoroutine
   def prior_structure():
     yield Root(tfd.Independent(tfd.MixtureSameFamily(
@@ -59,8 +58,17 @@ def train(model, n_components, initial_scale):
     surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
       prior_structure)[-1])
 
-  if model == 'maf':
-    maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+  if model in ['maf', 'np_maf_fixed', 'sandwich_fixed']:
+    if model == 'maf':
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+    elif model == 'np_maf_fixed':
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         'normalizing_program',
+                                                         'maf')
+    elif model == 'sandwich_fixed':
+      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
+        prior_structure)
+
     maf.log_prob(prior_structure.sample())
     trainable_variables = []
     trainable_variables.extend(list(maf.trainable_variables))
@@ -83,7 +91,7 @@ def train(model, n_components, initial_scale):
   X_train = prior_matching_bijector(X)
   dataset = tf.data.Dataset.from_tensor_slices(X_train)
   dataset = dataset.shuffle(1000, reshuffle_each_iteration=True).padded_batch(
-    64)
+    128)
 
   optimizer = tf.optimizers.Adam(learning_rate=1e-4)
   train_loss_results = []
@@ -100,25 +108,46 @@ def train(model, n_components, initial_scale):
     train_loss_results.append(epoch_loss_avg.result())
 
   plt.plot(train_loss_results)
-  plt.savefig(f'loss_{name}.png',
+  plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.clf()
-  component_logits = tf.convert_to_tensor(component_logits)
-  locs = tf.convert_to_tensor(locs)
-  scales = tf.convert_to_tensor(scales)
+  results = {
+    'loss': train_loss_results
+  }
+  if model in ['np_maf', 'sandwich']:
+    component_logits = tf.convert_to_tensor(component_logits)
+    locs = tf.convert_to_tensor(locs)
+    scales = tf.convert_to_tensor(scales)
+    results['component_logits'] = component_logits
+    results['locs'] = locs
+    results['scales'] = scales
+
+  with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
+    pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
   plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
-                  mesh_count=200,
-                  name=f'density_{name}.png')
+                  mesh_count=500,
+                  name=f'{save_dir}/density_{name}.png')
   plt.clf()
   print(f'{name} done!')
 
-models = ['maf', 'np_maf', 'sandwich']
+datasets = ['checkerboard', "2spirals", "diamond", "8gaussians"]
+models = ['maf', 'np_maf', 'sandwich', 'np_maf_fixed', 'sandwich_fixed']
 
-for model in models:
-  if model == 'maf':
-    train(model, 20, .1)
-
-  else:
-    for n_components in [5, 20, 100]:
-      for initial_scale in [1., .1]:
-        train(model, n_components, initial_scale)
+main_dir = '2d_toy_results'
+if not os.path.exists(main_dir):
+  os.makedirs(main_dir)
+for data in datasets:
+  X, _ = generate_2d_data('8gaussians', batch_size=n)
+  if not os.path.exists(f'{main_dir}/{data}'):
+    os.makedirs(main_dir)
+  plot_samples(X, name=f'{main_dir}/{data}/ground_truth.png')
+  for model in models:
+    if model == 'maf':
+      name = 'maf'
+      train(model, 20, .1, X, name, save_dir=f'{main_dir}/{data}')
+    else:
+      for n_components in [5, 20, 100]:
+        for initial_scale in [1., .1]:
+          name = f'c{n_components}_s{initial_scale}_{model}'
+          train(model, n_components, initial_scale, X, name, save_dir=f'{main_dir}/{data}')
