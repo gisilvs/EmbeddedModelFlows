@@ -122,6 +122,31 @@ def generate_2d_data(data, rng=None, batch_size=1000):
     data = 2 * rng.permutation(np.einsum("ti,tij->tj", features, rotations))
     return data, np.max(data)
 
+  elif data == "diamond":
+    bound = -2.5
+    width = 15
+    rotate=True
+    means = np.array(
+      [
+        (x + 1e-3 * np.random.rand(), y + 1e-3 * np.random.rand())
+        for x in np.linspace(-bound, bound, width)
+        for y in np.linspace(-bound, bound, width)
+      ]
+    )
+
+    covariance_factor = 0.06 * np.eye(2)
+
+    index = np.random.choice(range(width ** 2), size=batch_size, replace=True)
+    noise = np.random.randn(batch_size, 2)
+    data = means[index] + noise @ covariance_factor
+    if rotate:
+      rotation_matrix = np.array(
+        [[1 / np.sqrt(2), -1 / np.sqrt(2)], [1 / np.sqrt(2), 1 / np.sqrt(2)]]
+      )
+      data = data @ rotation_matrix
+    data = data.astype(np.float32)
+    return data, np.max(data)
+
   elif data == "2spirals":
     n = np.sqrt(np.random.rand(batch_size // 2, 1)) * 540 * (2 * np.pi) / 360
     d1x = -np.cos(n) * n + np.random.rand(batch_size // 2, 1) * 0.5
