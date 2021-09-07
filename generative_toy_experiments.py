@@ -135,7 +135,7 @@ datasets = ['checkerboard', "2spirals", "diamond", "8gaussians"]
 models = ['maf', 'np_maf', 'sandwich', 'np_maf_fixed', 'sandwich_fixed']
 
 main_dir = '2d_toy_results'
-if not os.path.exists(main_dir):
+if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 for data in datasets:
   X, _ = generate_2d_data('8gaussians', batch_size=n)
