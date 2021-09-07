@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 10
+num_epochs = 50
 n = int(1e6)
 n_dims = 2
 
@@ -27,16 +27,20 @@ def grad(model, inputs, trainable_variables):
     loss = -model.log_prob(inputs)
   return loss, tape.gradient(loss, trainable_variables)
 
-def train(model, n_components, initial_scale, X, name, save_dir):
+def train(model, n_components, X, name, save_dir):
   if model in ['maf']:
+
+    ### not used ###
     component_logits = tf.convert_to_tensor(
       [[1. / n_components for _ in range(n_components)] for _ in
        range(n_dims)])
     locs = tf.convert_to_tensor(
       [tf.linspace(-n_components / 2, n_components / 2, n_components) for _ in
        range(n_dims)])
-    scales = tf.convert_to_tensor([[.1 for _ in range(n_components)] for _ in
+    scales = tf.convert_to_tensor([[1. for _ in range(n_components)] for _ in
                                    range(n_dims)])
+    #################
+
   else:
     component_logits = tf.Variable(
       [[1. / n_components for _ in range(n_components)] for _ in
@@ -44,7 +48,7 @@ def train(model, n_components, initial_scale, X, name, save_dir):
     locs = tf.Variable(
       [tf.linspace(-4., 4., n_components) for _ in range(n_dims)])
     scales = tfp.util.TransformedVariable(
-      [[initial_scale for _ in range(n_components)] for _ in
+      [[1. for _ in range(n_components)] for _ in
        range(n_dims)], tfb.Softplus())
 
   @tfd.JointDistributionCoroutine
@@ -137,9 +141,8 @@ for data in datasets:
   for model in models:
     if model == 'maf':
       name = 'maf'
-      train(model, 20, .1, X, name, save_dir=f'{main_dir}/{data}')
+      train(model, 20, X, name, save_dir=f'{main_dir}/{data}')
     else:
       for n_components in [5, 20, 100]:
-        for initial_scale in [1., .1]:
-          name = f'c{n_components}_s{initial_scale}_{model}'
-          train(model, n_components, initial_scale, X, name, save_dir=f'{main_dir}/{data}')
+        name = f'c{n_components}_{model}'
+        train(model, n_components, X, name, save_dir=f'{main_dir}/{data}')
