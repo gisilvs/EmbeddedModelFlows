@@ -66,6 +66,8 @@ def plot_heatmap_2d(dist, matching_bijector=None, xmin=-4.0, xmax=4.0, ymin=-4.0
              aspect="equal")
   if name:
     fig.savefig(name, format="png")
+  else:
+    plt.show()
 
 def plot_samples(samples, npts=1000, low=-4, high=4, name=None):
   fig = plt.figure(frameon=False)
@@ -80,3 +82,5 @@ def plot_samples(samples, npts=1000, low=-4, high=4, name=None):
 
   if name:
     fig.savefig(name, format="png")
+  else:
+    plt.show()
