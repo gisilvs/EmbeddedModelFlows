@@ -133,6 +133,7 @@ for data in datasets:
   if not os.path.exists(f'{main_dir}/{data}'):
     os.makedirs(f'{main_dir}/{data}')
   plot_samples(X, name=f'{main_dir}/{data}/ground_truth.png')
+  plt.close()
   for model in models:
     if model == 'maf':
       name = 'maf'
