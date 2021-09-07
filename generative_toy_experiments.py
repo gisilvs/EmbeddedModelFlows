@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 1
+num_epochs = 10
 n = int(1e6)
 n_dims = 2
 
@@ -28,7 +28,7 @@ def grad(model, inputs, trainable_variables):
   return loss, tape.gradient(loss, trainable_variables)
 
 def train(model, n_components, initial_scale, X, name, save_dir):
-  if model in ['maf', 'np_maf_fixed', 'sandwich_fixed']:
+  if model in ['maf']:
     component_logits = tf.convert_to_tensor(
       [[1. / n_components for _ in range(n_components)] for _ in
        range(n_dims)])
@@ -58,17 +58,8 @@ def train(model, n_components, initial_scale, X, name, save_dir):
     surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
       prior_structure)[-1])
 
-  if model in ['maf', 'np_maf_fixed', 'sandwich_fixed']:
-    if model == 'maf':
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
-    elif model == 'np_maf_fixed':
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
-                                                         'maf')
-    elif model == 'sandwich_fixed':
-      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
-        prior_structure)
-
+  if model in ['maf']:
+    maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     maf.log_prob(prior_structure.sample())
     trainable_variables = []
     trainable_variables.extend(list(maf.trainable_variables))
@@ -110,7 +101,7 @@ def train(model, n_components, initial_scale, X, name, save_dir):
   plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
-  plt.clf()
+  plt.close()
   results = {
     'loss': train_loss_results
   }
@@ -128,17 +119,17 @@ def train(model, n_components, initial_scale, X, name, save_dir):
   plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
                   name=f'{save_dir}/density_{name}.png')
-  plt.clf()
+  plt.close()
   print(f'{name} done!')
 
 datasets = ['checkerboard', "2spirals", "diamond", "8gaussians"]
-models = ['maf', 'np_maf', 'sandwich', 'np_maf_fixed', 'sandwich_fixed']
+models = ['maf', 'np_maf', 'sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 for data in datasets:
-  X, _ = generate_2d_data('8gaussians', batch_size=n)
+  X, _ = generate_2d_data(data, batch_size=n)
   if not os.path.exists(f'{main_dir}/{data}'):
     os.makedirs(f'{main_dir}/{data}')
   plot_samples(X, name=f'{main_dir}/{data}/ground_truth.png')
