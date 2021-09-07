@@ -81,7 +81,7 @@ def train(model, n_components, initial_scale, X, name, save_dir):
 
   X_train = prior_matching_bijector(X)
   dataset = tf.data.Dataset.from_tensor_slices(X_train)
-  dataset = dataset.shuffle(1000, reshuffle_each_iteration=True).padded_batch(
+  dataset = dataset.shuffle(2048, reshuffle_each_iteration=True).padded_batch(
     128)
 
   optimizer = tf.optimizers.Adam(learning_rate=1e-4)
