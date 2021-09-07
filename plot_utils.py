@@ -66,3 +66,17 @@ def plot_heatmap_2d(dist, matching_bijector=None, xmin=-4.0, xmax=4.0, ymin=-4.0
              aspect="equal")
   if name:
     fig.savefig(name, format="png")
+
+def plot_samples(samples, npts=1000, low=-4, high=4, name=None):
+  fig = plt.figure(frameon=False)
+  ax = plt.Axes(fig, [0., 0., 1., 1.])
+  ax.hist2d(samples[:, 0], samples[:, 1], range=[[low, high], [low, high]],
+            bins=npts)
+  ax.invert_yaxis()
+  ax.get_xaxis().set_ticks([])
+  ax.get_yaxis().set_ticks([])
+  ax.set_aspect('equal')
+  fig.add_axes(ax)
+
+  if name:
+    fig.savefig(name, format="png")
