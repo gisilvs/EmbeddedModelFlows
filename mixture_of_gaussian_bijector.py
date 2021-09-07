@@ -30,7 +30,7 @@ class MixtureOfGaussians(tfb.Bijector):
 
   def _augmented_inverse(self, y):
     bij = tfe.bijectors.ScalarFunctionWithInferredInverse(
-      lambda e: self.forward_pass(e), max_iterations=50, root_search_fn=tfp.math.find_root_chandrupatla)
+      lambda e: self.forward_pass(e), max_iterations=100, root_search_fn=tfp.math.find_root_chandrupatla)
     ildj = bij.inverse_log_det_jacobian(y)
     y = bij.inverse(y)
     return y, {'ildj': ildj, 'fldj': -ildj}
