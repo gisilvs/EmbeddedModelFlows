@@ -8,7 +8,7 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 Root = tfd.JointDistributionCoroutine.Root
 data = 'checkerboard'
-model = 'c5_s1.0_np_maf'
+model = 'c5_s0.1_np_maf'
 with open(f'2d_toy_results/{data}/{model}.pickle', 'rb') as handle:
   results = pickle.load(handle)
 
