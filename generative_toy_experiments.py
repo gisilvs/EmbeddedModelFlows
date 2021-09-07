@@ -140,7 +140,7 @@ if not os.path.isdir(main_dir):
 for data in datasets:
   X, _ = generate_2d_data('8gaussians', batch_size=n)
   if not os.path.exists(f'{main_dir}/{data}'):
-    os.makedirs(main_dir)
+    os.makedirs(f'{main_dir}/{data}')
   plot_samples(X, name=f'{main_dir}/{data}/ground_truth.png')
   for model in models:
     if model == 'maf':
