@@ -33,9 +33,12 @@ def build_iaf_bijector(num_hidden_units,
     return maf
 
   iaf_bijector = [make_maf()]
-
+  if not is_iaf:
+    iaf_bijector.append(tfb.BatchNormalization())
   for _ in range(num_flow_layers - 1):
     iaf_bijector.extend([make_swap(), make_maf()])
+    if not is_iaf:
+      iaf_bijector.append(tfb.BatchNormalization())
 
   return iaf_bijector
 
