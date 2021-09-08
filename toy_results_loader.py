@@ -8,7 +8,7 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 Root = tfd.JointDistributionCoroutine.Root
 data = 'checkerboard'
-model = 'c5_s0.1_np_maf'
+model = 'c20_sandwich'
 with open(f'2d_toy_results/{data}/{model}.pickle', 'rb') as handle:
   results = pickle.load(handle)
 
@@ -23,5 +23,5 @@ prior_matching_bijector = tfb.Chain(
     surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
       prior_structure)[-1])
 
-plot_heatmap_2d(prior_structure, prior_matching_bijector,)
+plot_heatmap_2d(prior_structure, prior_matching_bijector, xmin=-6., xmax=6., ymin=-6., ymax=6.)
 
