@@ -60,7 +60,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   if backbone_name:
     surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
 
-  repo_name = f'results_with_samples/{model_name}/{surrogate_posterior_name}'
+  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
   if not os.path.exists(repo_name):
     os.makedirs(repo_name)
 
@@ -69,28 +69,28 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
 
   print(f'{model_name} {surrogate_posterior_name} rep{i} done!')
 
-if not os.path.exists('results_with_samples'):
-  os.makedirs('results_with_samples')
+if not os.path.exists('results'):
+  os.makedirs('results')
 
 #todo: test more radon
-model_names = [#'eight_schools',
+model_names = ['eight_schools',
                #'radon',
-               #'brownian_smoothing_r',
-               #'brownian_smoothing_c',
-               #'brownian_bridge_r',
-               #'brownian_bridge_c',
+               'brownian_smoothing_r',
+               'brownian_smoothing_c',
+               'brownian_bridge_r',
+               'brownian_bridge_c',
                'lorenz_smoothing_r',
                'lorenz_smoothing_c',
                'lorenz_bridge_r',
                'lorenz_bridge_c',
-               #'linear_binary_tree_4',
-               #'linear_binary_tree_8',
-               #'tanh_binary_tree_4',
-               #'tanh_binary_tree_8',
+               'linear_binary_tree_4',
+               'linear_binary_tree_8',
+               'tanh_binary_tree_4',
+               'tanh_binary_tree_8',
                ]
 
 surrogate_posterior_names = [#'mean_field',
-                             #'multivariate_normal',
+                             'multivariate_normal',
                              #'asvi',
                              'iaf',
                              'normalizing_program',
@@ -98,14 +98,14 @@ surrogate_posterior_names = [#'mean_field',
 ]
 
 backbone_names = [#'mean_field',
-                  #'multivariate_normal',
+                  'multivariate_normal',
                   'iaf',
                   #'highway_flow'
 ]
 
 
-#seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-seeds = [10, 30, 50, 70, 90]
+seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+#seeds = [10, 30, 50, 70, 90]
 
 for i in range(10):
   for model_name in model_names:
