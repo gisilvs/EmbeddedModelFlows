@@ -3,7 +3,7 @@ import tensorflow_probability as tfp
 
 from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector
 from gate_bijector import GateBijector
-from mixture_of_gaussian_bijector import MixtureOfGaussians
+from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 from tensorflow_probability.python.internal import prefer_static as ps
 
 
@@ -47,7 +47,7 @@ stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())),
   tfd.Sample: lambda d: _bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _bijector_from_stdnormal(d.distribution),
-  tfd.MixtureSameFamily: lambda d: tfb.Chain([tfb.Invert(MixtureOfGaussians(d)), tfb.NormalCDF()])
+  tfd.MixtureSameFamily: lambda d: tfb.Chain([InverseMixtureOfGaussians(d), tfb.NormalCDF()])
 }
 
 gated_stdnormal_bijector_fns = {
@@ -149,7 +149,7 @@ def _mean_field(prior):
   return tfe.vi.build_asvi_surrogate_posterior(prior, mean_field=True)
 
 
-def _multivariate_normal(prior):
+def _multivariate_normal(prior, np_bijector):
   def make_trainable_linear_operator_tril(
       dim,
       scale_initializer=1e-1,
@@ -177,15 +177,20 @@ def _multivariate_normal(prior):
     [tfb.Shift(tf.Variable(tf.zeros([ndims], dtype=dtype))),
      tfb.ScaleMatvecLinearOperator(op)])
 
+  if np_bijector:
+    bijector = tfb.Chain([np_bijector] + prior_matching_bijectors)
+  else:
+    bijector = tfb.Chain(prior_matching_bijectors)
+
   return tfd.TransformedDistribution(base_dist,
-                                     tfb.Chain(prior_matching_bijectors))
+                                     bijector)
 
 
 def _asvi(prior):
   return tfe.vi.build_asvi_surrogate_posterior(prior)
 
 
-def _normalizing_flows(prior, flow_name, flow_params):
+def _normalizing_flows(prior, flow_name, flow_params, np_bijector):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
@@ -205,24 +210,27 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_params['ndims'] = ndims
     flow_bijector = build_real_nvp_bijector(**flow_params)
 
+  if np_bijector:
+    bijectors = [np_bijector] + prior_matching_bijectors + flow_bijector
+
+  else:
+    bijectors = prior_matching_bijectors + flow_bijector
+
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
-    bijector=tfb.Chain(prior_matching_bijectors +
-                       flow_bijector
+    bijector=tfb.Chain(bijectors
                        ))
 
   return nf_surrogate_posterior
 
 
 def _normalizing_program(prior, backbone_name, flow_params):
-  backbone_surrogate_posterior = get_surrogate_posterior(prior,
-                                                         surrogate_posterior_name=backbone_name,
-                                                         flow_params=flow_params)
   bijector = AutoFromNormal(prior)
-  return tfd.TransformedDistribution(
-    distribution=backbone_surrogate_posterior,
-    bijector=bijector
-  )
+  surrogate_posterior = get_surrogate_posterior(prior,
+                                               surrogate_posterior_name=backbone_name,
+                                               flow_params=flow_params,
+                                               np_bijector=bijector)
+  return surrogate_posterior
 
 def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
@@ -243,7 +251,13 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   normalizing_program = AutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
-  bijector = tfb.Chain([prior_matching_bijectors,flow_bijector_post[0], make_swap(), tfb.Invert(prior_matching_bijectors), normalizing_program, prior_matching_bijectors, flow_bijector_pre[0]])
+  bijector = tfb.Chain([prior_matching_bijectors,
+                        flow_bijector_post[0],
+                        make_swap(),
+                        tfb.Invert(prior_matching_bijectors),
+                        normalizing_program,
+                        prior_matching_bijectors,
+                        flow_bijector_pre[0]])
 
   backbone_surrogate_posterior = tfd.TransformedDistribution(
     distribution=base_distribution,
@@ -254,31 +268,17 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
 
 
 def _gated_normalizing_program(prior, backbone_name, flow_params):
-  '''for d in prior._get_single_sample_distributions():
-    if type(d) == tfd.Independent or type(d) == tfd.Sample:
-      d.distribution._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())
-    else:
-      d._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())'''
-
-  backbone_surrogate_posterior = get_surrogate_posterior(prior,
-                                                         surrogate_posterior_name=backbone_name,
-                                                         flow_params=flow_params)
-
-  '''for d in backbone_surrogate_posterior._get_single_sample_distributions():
-    if type(d) == tfd.Independent or type(d) == tfd.Sample:
-      d.distribution._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())
-    else:
-      d._residual_fraction = tfp.util.TransformedVariable(0.98, bijector=tfb.Sigmoid())'''
-
   bijector = GatedAutoFromNormal(prior)
-  return tfd.TransformedDistribution(
-    distribution=backbone_surrogate_posterior,
-    bijector=bijector
-  )
+  surrogate_posterior = get_surrogate_posterior(prior,
+                                               surrogate_posterior_name=backbone_name,
+                                               flow_params=flow_params,
+                                               np_bijector=bijector)
+
+  return surrogate_posterior
 
 
 def get_surrogate_posterior(prior, surrogate_posterior_name,
-                            backnone_name=None, flow_params={}):
+                            backnone_name=None, flow_params={}, np_bijector=None):
   # Needed to reset the gates if running several experiments sequentially
   global residual_fraction_vars
   residual_fraction_vars = {}
@@ -287,7 +287,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _mean_field(prior)
 
   elif surrogate_posterior_name == 'multivariate_normal':
-    return _multivariate_normal(prior)
+    return _multivariate_normal(prior, np_bijector=np_bijector)
 
   elif surrogate_posterior_name == "asvi":
     return _asvi(prior)
@@ -297,7 +297,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     flow_params['num_hidden_units'] = 512
     if 'activation_fn' not in flow_params:
       flow_params['activation_fn'] = tf.math.tanh
-    return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
+    return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params, np_bijector=np_bijector)
 
   elif surrogate_posterior_name == "maf":
     flow_params['num_flow_layers'] = 2
@@ -305,7 +305,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     flow_params['is_iaf'] = False
     if 'activation_fn' not in flow_params:
       flow_params['activation_fn'] = tf.math.tanh
-    return _normalizing_flows(prior, flow_name='maf', flow_params=flow_params)
+    return _normalizing_flows(prior, flow_name='maf', flow_params=flow_params, np_bijector=np_bijector)
 
 
   elif surrogate_posterior_name == "real_nvp":
@@ -314,7 +314,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       'num_hidden_units': 512
     }
     return _normalizing_flows(prior, flow_name='real_nvp',
-                              flow_params=flow_params)
+                              flow_params=flow_params, np_bijector=np_bijector)
 
   elif surrogate_posterior_name == "normalizing_program":
     if backnone_name == 'iaf':
