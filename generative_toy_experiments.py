@@ -64,7 +64,7 @@ def train(model, n_components, X, name, save_dir):
 
   if model in ['maf']:
     maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
-    maf.log_prob(prior_structure.sample())
+    maf.log_prob(prior_structure.sample(1))
     trainable_variables = []
     trainable_variables.extend(list(maf.trainable_variables))
 
@@ -77,7 +77,7 @@ def train(model, n_components, X, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
-    maf.log_prob(prior_structure.sample())
+    maf.log_prob(prior_structure.sample(1))
     trainable_variables = []
     trainable_variables.extend([component_logits, locs])
     trainable_variables.extend(list(scales.trainable_variables))
