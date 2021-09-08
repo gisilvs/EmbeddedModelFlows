@@ -118,12 +118,12 @@ def train(model, n_components, X, name, save_dir):
     results['scales'] = scales
     if model == 'np_maf':
       for i in range(len(maf.distribution.bijector.bijectors)):
-        if maf.distribution.bijector.bijectors[i].name == 'batch_normalization':
-          maf.distribution.bijector.bijectors[i].batchnorm.trainable = False
+        if 'batch_normalization' in maf.distribution.bijector.bijectors[i].name:
+          maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
     else:
       for i in range(len(maf.bijector.bijectors)):
-        if maf.bijector.bijectors[i].name == 'batch_normalization':
-          maf.bijector.bijectors[i].batchnorm.trainable = False
+        if 'batch_normalization' in maf.bijector.bijectors[i].name == 'batch_normalization':
+          maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
 
 
   with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
