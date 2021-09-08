@@ -39,28 +39,23 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   else:
     fkl = None
 
+  results = {
+    'loss': losses,
+    'elbo': elbo,
+    'fkl': fkl
+  }
   if surrogate_posterior_name == 'gated_normalizing_program':
-    results = {'loss':losses,
-               'elbo':elbo,
-               'fkl':fkl,
-               'residual_fraction_vars': surrogate_posteriors.residual_fraction_vars,
-               'ground_truth':tf.convert_to_tensor(ground_truth),
-               'observations': tf.convert_to_tensor(observations),
-               'samples': tf.convert_to_tensor(samples),
-               }
-  else:
-    results = {'loss': losses,
-               'elbo': elbo,
-               'fkl': fkl,
-               'ground_truth': tf.convert_to_tensor(ground_truth),
-               'observations': tf.convert_to_tensor(observations),
-               'samples': tf.convert_to_tensor(samples),
-               }
+    results['residual_fraction_vars'] = surrogate_posteriors.residual_fraction_vars
+
+  if 'brownian' in model_name or 'lorenz' in model_name:
+    results['observations'] = tf.convert_to_tensor(observations)
+    results['ground_truth'] = tf.convert_to_tensor(ground_truth)
+    results['samples'] = tf.convert_to_tensor(samples)
 
   if backbone_name:
     surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
 
-  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
+  repo_name = f'results_0/{model_name}/{surrogate_posterior_name}'
   if not os.path.exists(repo_name):
     os.makedirs(repo_name)
 
@@ -73,32 +68,32 @@ if not os.path.exists('results'):
   os.makedirs('results')
 
 #todo: test more radon
-model_names = ['eight_schools',
+model_names = [#'eight_schools',
                #'radon',
-               'brownian_smoothing_r',
-               'brownian_smoothing_c',
+               #'brownian_smoothing_r',
+               #'brownian_smoothing_c',
                'brownian_bridge_r',
-               'brownian_bridge_c',
-               'lorenz_smoothing_r',
-               'lorenz_smoothing_c',
+               #'brownian_bridge_c',
+               #'lorenz_smoothing_r',
+               #'lorenz_smoothing_c',
                'lorenz_bridge_r',
-               'lorenz_bridge_c',
+               #'lorenz_bridge_c',
                'linear_binary_tree_4',
-               'linear_binary_tree_8',
-               'tanh_binary_tree_4',
+               #'linear_binary_tree_8',
+               #'tanh_binary_tree_4',
                'tanh_binary_tree_8',
                ]
 
 surrogate_posterior_names = [#'mean_field',
-                             'multivariate_normal',
+                             #'multivariate_normal',
                              #'asvi',
-                             'iaf',
+                             #'iaf',
                              'normalizing_program',
-                             'gated_normalizing_program'
+                             #'gated_normalizing_program'
 ]
 
 backbone_names = [#'mean_field',
-                  'multivariate_normal',
+                  #'multivariate_normal',
                   'iaf',
                   #'highway_flow'
 ]
