@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 50
+num_epochs = 100
 n = int(1e6)
 n_dims = 2
 
