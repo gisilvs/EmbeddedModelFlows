@@ -5,7 +5,7 @@ from tensorflow_probability.python.internal import test_util
 
 import bijector_test_util
 
-from mixture_of_gaussian_bijector import MixtureOfGaussians
+from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -30,17 +30,17 @@ dist = tfd.MixtureSameFamily(
 class GateBijectorForNormalTests(test_util.TestCase):
 
   def testBijector(self):
-    x = dist.sample(10, seed=(0,0))
+    x = tfb.NormalCDF()(dist.sample(10, seed=(0,0)))
 
-    bijector = MixtureOfGaussians(dist)
+    bijector = InverseMixtureOfGaussians(dist)
 
     self.evaluate([v.initializer for v in bijector.trainable_variables])
     self.assertStartsWith(bijector.name, 'mixture_of_gaussians')
     self.assertAllClose(tf.convert_to_tensor(x), bijector.inverse(tf.identity(bijector.forward(x))))
 
   def testTheoreticalFldj(self):
-    x = dist.sample(10, seed=(0,0))
-    bijector = MixtureOfGaussians(dist)
+    x = tfb.NormalCDF()(dist.sample(10, seed=(0,0)))
+    bijector = InverseMixtureOfGaussians(dist)
     self.evaluate([v.initializer for v in bijector.trainable_variables])
     y = bijector.forward(x)
     bijector_test_util.assert_bijective_and_finite(
