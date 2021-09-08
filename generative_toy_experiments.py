@@ -135,7 +135,7 @@ def train(model, n_components, X, name, save_dir):
   plt.close()
   print(f'{name} done!')
 
-datasets = ['checkerboard', "2spirals", "diamond", "8gaussians"]
+datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
 models = ['maf', 'np_maf', 'sandwich']
 
 main_dir = '2d_toy_results'
@@ -152,6 +152,6 @@ for data in datasets:
       name = 'maf'
       train(model, 20, X, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [5, 20, 100]:
+      for n_components in [5, 100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, X, name, save_dir=f'{main_dir}/{data}')
