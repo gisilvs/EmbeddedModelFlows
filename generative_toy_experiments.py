@@ -86,11 +86,7 @@ def train(model, n_components, X, name, save_dir):
   dataset = dataset.shuffle(2048, reshuffle_each_iteration=True).padded_batch(
     128)
 
-  if model == 'maf':
-    lr = 1e-4
-  else:
-    lr = 5e-5
-  optimizer = tf.optimizers.Adam(learning_rate=lr)
+  optimizer = tf.optimizers.Adam(learning_rate=5e-5)
   train_loss_results = []
 
   for epoch in range(num_epochs):
@@ -152,7 +148,7 @@ def train(model, n_components, X, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['sandwich']
+models = ['maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
