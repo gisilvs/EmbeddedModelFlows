@@ -41,7 +41,7 @@ def train(model, n_components, X, name, save_dir):
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
         locs = tf.Variable(
-          [tf.linspace(-15., 0., n_components) for _ in range(n_dims)],
+          [tf.linspace(-4., 4., n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
           [[1. for _ in range(n_components)] for _ in
