@@ -239,13 +239,13 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
 
   bijector = tfb.Chain([prior_matching_bijectors,
                         flow_bijector_post[0],
-                        tfb.BatchNormalization(training=True),
+                        flow_bijector_post[1],
                         make_swap(),
                         tfb.Invert(prior_matching_bijectors),
                         normalizing_program,
                         prior_matching_bijectors,
                         flow_bijector_pre[0],
-                        tfb.BatchNormalization(training=True)])
+                        flow_bijector_pre[1]])
 
   backbone_surrogate_posterior = tfd.TransformedDistribution(
     distribution=base_distribution,
