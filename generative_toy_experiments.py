@@ -148,7 +148,7 @@ def train(model, n_components, X, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['maf']
+models = ['sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
@@ -164,6 +164,6 @@ for data in datasets:
       name = 'maf'
       train(model, 20, X, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [5, 100]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, X, name, save_dir=f'{main_dir}/{data}')
