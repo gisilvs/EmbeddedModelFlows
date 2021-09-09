@@ -135,8 +135,8 @@ def train(model, n_components, X, name, save_dir):
   plt.close()
   print(f'{name} done!')
 
-datasets = ['checkerboard', "diamond"]
-models = ['maf', 'np_maf', 'sandwich']
+datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
+models = ['maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
