@@ -41,7 +41,7 @@ def train(model, n_components, X, name, save_dir):
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
         locs = tf.Variable(
-          [tf.linspace(-15., 0., n_components) for _ in range(n_dims)],
+          [tf.linspace(-4., 4., n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
           [[1. for _ in range(n_components)] for _ in
@@ -139,7 +139,6 @@ def train(model, n_components, X, name, save_dir):
     plt.close()
     for bij in reversed(fixed_maf.bijector.bijectors[1:]):
       x = bij.forward(x)
-      print(bij.name)
       if 'chain' in bij.name:
         plot_samples(x, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
@@ -148,7 +147,7 @@ def train(model, n_components, X, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['maf']
+models = ['sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
@@ -164,6 +163,6 @@ for data in datasets:
       name = 'maf'
       train(model, 20, X, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [5, 100]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, X, name, save_dir=f'{main_dir}/{data}')
