@@ -22,26 +22,30 @@ n = int(1e6)
 n_dims = 2
 
 def train(model, n_components, X, name, save_dir):
-
-  def build_model(model_name):
-    if model_name == 'maf':
-      component_logits = tf.convert_to_tensor(
-        [[1. / n_components for _ in range(n_components)] for _ in
-         range(n_dims)])
-      locs = tf.convert_to_tensor(
-        [tf.linspace(-n_components / 2, n_components / 2, n_components) for _ in
-         range(n_dims)])
-      scales = tf.convert_to_tensor([[1. for _ in range(n_components)] for _ in
-                                     range(n_dims)])
-    else:
-      component_logits = tf.Variable(
-        [[1. / n_components for _ in range(n_components)] for _ in
-         range(n_dims)])
-      locs = tf.Variable(
-        [tf.linspace(-4., 4., n_components) for _ in range(n_dims)])
-      scales = tfp.util.TransformedVariable(
-        [[1. for _ in range(n_components)] for _ in
-         range(n_dims)], tfb.Softplus())
+  def build_model(model_name, trainable_mixture=True, component_logits=None,
+                  locs=None, scales=None):
+    if trainable_mixture:
+      if model_name == 'maf':
+        component_logits = tf.convert_to_tensor(
+          [[1. / n_components for _ in range(n_components)] for _ in
+           range(n_dims)])
+        locs = tf.convert_to_tensor(
+          [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
+           in
+           range(n_dims)])
+        scales = tf.convert_to_tensor(
+          [[1. for _ in range(n_components)] for _ in
+           range(n_dims)])
+      else:
+        component_logits = tf.Variable(
+          [[1. / n_components for _ in range(n_components)] for _ in
+           range(n_dims)], name='component_logits')
+        locs = tf.Variable(
+          [tf.linspace(-15., 0., n_components) for _ in range(n_dims)],
+          name='locs')
+        scales = tfp.util.TransformedVariable(
+          [[1. for _ in range(n_components)] for _ in
+           range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
@@ -56,9 +60,12 @@ def train(model, n_components, X, name, save_dir):
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'normalizing_program', 'maf')
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         'normalizing_program',
+                                                         'maf')
     elif model_name == 'sandwich':
-      maf = surrogate_posteriors._sandwich_maf_normalizing_program(prior_structure)
+      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
+        prior_structure)
 
     maf.log_prob(prior_structure.sample(1))
 
@@ -79,7 +86,11 @@ def train(model, n_components, X, name, save_dir):
   dataset = dataset.shuffle(2048, reshuffle_each_iteration=True).padded_batch(
     128)
 
-  optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+  if model == 'maf':
+    lr = 1e-4
+  else:
+    lr = 5e-5
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   train_loss_results = []
 
   for epoch in range(num_epochs):
@@ -111,10 +122,37 @@ def train(model, n_components, X, name, save_dir):
                   mesh_count=500,
                   name=f'{save_dir}/density_{name}.png')
   plt.close()
+
+  if model == 'sandwich':
+    for v in maf.trainable_variables:
+      if 'locs' in v.name:
+        locs = tf.convert_to_tensor(v)
+      elif 'scales' in v.name:
+        scales = tf.convert_to_tensor(v)
+      elif 'component_logits' in v.name:
+        component_logits = tf.convert_to_tensor(v)
+
+    fixed_maf, _ = build_model('sandwich', trainable_mixture=False,
+                               component_logits=component_logits, locs=locs,
+                               scales=scales)
+
+    if not os.path.exists(f'{save_dir}/bijector_steps'):
+      os.makedirs(f'{save_dir}/bijector_steps')
+    x = fixed_maf.distribution.sample(1e-6)
+    plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
+    plt.close()
+    for bij in reversed(fixed_maf.bijector.bijectors[1:]):
+      x = bij.forward(x)
+      print(bij.name)
+      if 'chain' in bij.name:
+        plot_samples(x, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
+      else:
+        plot_samples(x, name=f'{save_dir}/bijector_steps/{bij.name}.png')
+      plt.close()
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['maf']
+models = ['sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
