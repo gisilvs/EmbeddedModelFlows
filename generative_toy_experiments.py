@@ -65,9 +65,9 @@ def train(model, n_components, X, name, save_dir):
     return maf, prior_matching_bijector
 
   @tf.function
-  def optimizer_step(inputs):
+  def optimizer_step():
     with tf.GradientTape() as tape:
-      loss = -maf.log_prob(inputs)
+      loss = -maf.log_prob(x)
     grads = tape.gradient(loss, maf.trainable_variables)
     optimizer.apply_gradients(zip(grads, maf.trainable_variables))
     return loss
@@ -86,7 +86,8 @@ def train(model, n_components, X, name, save_dir):
     epoch_loss_avg = tf.keras.metrics.Mean()
     for x in dataset:
       # Optimize the model
-      loss_value = optimizer_step(x)
+      loss_value = optimizer_step()
+      #print(loss_value)
       epoch_loss_avg.update_state(loss_value)
 
     train_loss_results.append(epoch_loss_avg.result())
