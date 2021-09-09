@@ -139,7 +139,6 @@ def train(model, n_components, X, name, save_dir):
     plt.close()
     for bij in reversed(fixed_maf.bijector.bijectors[1:]):
       x = bij.forward(x)
-      print(bij.name)
       if 'chain' in bij.name:
         plot_samples(x, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
