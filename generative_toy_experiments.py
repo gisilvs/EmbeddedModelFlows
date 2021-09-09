@@ -18,7 +18,7 @@ tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
 num_epochs = 100
-n = int(1e6)
+n = int(1e5)
 n_dims = 2
 
 def train(model, n_components, X, name, save_dir):
@@ -72,11 +72,11 @@ def train(model, n_components, X, name, save_dir):
     return maf, prior_matching_bijector
 
   @tf.function
-  def optimizer_step():
+  def optimizer_step(net, inputs):
     with tf.GradientTape() as tape:
-      loss = -maf.log_prob(x)
-    grads = tape.gradient(loss, maf.trainable_variables)
-    optimizer.apply_gradients(zip(grads, maf.trainable_variables))
+      loss = -net.log_prob(inputs)
+    grads = tape.gradient(loss, net.trainable_variables)
+    optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
 
   maf, prior_matching_bijector = build_model(model)
@@ -93,8 +93,8 @@ def train(model, n_components, X, name, save_dir):
     epoch_loss_avg = tf.keras.metrics.Mean()
     for x in dataset:
       # Optimize the model
-      loss_value = optimizer_step()
-      #print(loss_value)
+      loss_value = optimizer_step(maf, x)
+      # print(loss_value)
       epoch_loss_avg.update_state(loss_value)
 
     train_loss_results.append(epoch_loss_avg.result())
@@ -119,7 +119,7 @@ def train(model, n_components, X, name, save_dir):
                   name=f'{save_dir}/density_{name}.png')
   plt.close()
 
-  if model == 'sandwich':
+  '''if model == 'sandwich':
     for v in maf.trainable_variables:
       if 'locs' in v.name:
         locs = tf.convert_to_tensor(v)
@@ -134,16 +134,16 @@ def train(model, n_components, X, name, save_dir):
 
     if not os.path.exists(f'{save_dir}/bijector_steps'):
       os.makedirs(f'{save_dir}/bijector_steps')
-    x = fixed_maf.distribution.sample(int(1e6))
+    x = fixed_maf.distribution.sample(int(1e5))
     plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
     plt.close()
     for bij in reversed(fixed_maf.bijector.bijectors[1:]):
       x = bij.forward(x)
       if 'chain' in bij.name:
-        plot_samples(x, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
+        plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
-        plot_samples(x, name=f'{save_dir}/bijector_steps/{bij.name}.png')
-      plt.close()
+        plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/{bij.name}.png')
+      plt.close()'''
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
@@ -156,7 +156,7 @@ for data in datasets:
   X, _ = generate_2d_data(data, batch_size=n)
   if not os.path.exists(f'{main_dir}/{data}'):
     os.makedirs(f'{main_dir}/{data}')
-  plot_samples(X, name=f'{main_dir}/{data}/ground_truth.png')
+  plot_samples(X, npts=500, name=f'{main_dir}/{data}/ground_truth.png')
   plt.close()
   for model in models:
     if model == 'maf':
