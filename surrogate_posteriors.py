@@ -241,9 +241,9 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
                         flow_bijector_post[0],
                         flow_bijector_post[1],
                         make_swap(),
-                        tfb.Invert(prior_matching_bijectors),
+                        tfb.Chain([tfb.Invert(prior_matching_bijectors),
                         normalizing_program,
-                        prior_matching_bijectors,
+                        prior_matching_bijectors]),
                         flow_bijector_pre[0],
                         flow_bijector_pre[1]])
 
