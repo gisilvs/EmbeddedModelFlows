@@ -146,6 +146,10 @@ def train(model, n_components, X, name, save_dir):
         x = maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/{bij_name}_{i}.png')
       plt.close()
+    x = tf.convert_to_tensor(maf.bijector.bijectors[0].forward(x))
+    plot_samples(x, npts=100,
+                 name=f'{save_dir}/bijector_steps/prior_matching.png')
+    plt.close()
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
