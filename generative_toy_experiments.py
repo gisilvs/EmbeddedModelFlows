@@ -21,67 +21,58 @@ num_epochs = 100
 n = int(1e6)
 n_dims = 2
 
-@tf.function
-def grad(model, inputs, trainable_variables):
-  with tf.GradientTape() as tape:
-    loss = -model.log_prob(inputs)
-  return loss, tape.gradient(loss, trainable_variables)
-
 def train(model, n_components, X, name, save_dir):
-  if model in ['maf']:
 
-    ### not used ###
-    component_logits = tf.convert_to_tensor(
-      [[1. / n_components for _ in range(n_components)] for _ in
-       range(n_dims)])
-    locs = tf.convert_to_tensor(
-      [tf.linspace(-n_components / 2, n_components / 2, n_components) for _ in
-       range(n_dims)])
-    scales = tf.convert_to_tensor([[1. for _ in range(n_components)] for _ in
-                                   range(n_dims)])
-    #################
+  def build_model(model_name):
+    if model_name == 'maf':
+      component_logits = tf.convert_to_tensor(
+        [[1. / n_components for _ in range(n_components)] for _ in
+         range(n_dims)])
+      locs = tf.convert_to_tensor(
+        [tf.linspace(-n_components / 2, n_components / 2, n_components) for _ in
+         range(n_dims)])
+      scales = tf.convert_to_tensor([[1. for _ in range(n_components)] for _ in
+                                     range(n_dims)])
+    else:
+      component_logits = tf.Variable(
+        [[1. / n_components for _ in range(n_components)] for _ in
+         range(n_dims)])
+      locs = tf.Variable(
+        [tf.linspace(-4., 4., n_components) for _ in range(n_dims)])
+      scales = tfp.util.TransformedVariable(
+        [[1. for _ in range(n_components)] for _ in
+         range(n_dims)], tfb.Softplus())
 
-  else:
-    component_logits = tf.Variable(
-      [[1. / n_components for _ in range(n_components)] for _ in
-       range(n_dims)])
-    locs = tf.Variable(
-      [tf.linspace(-4., 4., n_components) for _ in range(n_dims)])
-    scales = tfp.util.TransformedVariable(
-      [[1. for _ in range(n_components)] for _ in
-       range(n_dims)], tfb.Softplus())
+    @tfd.JointDistributionCoroutine
+    def prior_structure():
+      yield Root(tfd.Independent(tfd.MixtureSameFamily(
+        mixture_distribution=tfd.Categorical(logits=component_logits),
+        components_distribution=tfd.Normal(loc=locs, scale=scales),
+        name=f"prior"), 1))
 
-  @tfd.JointDistributionCoroutine
-  def prior_structure():
-    yield Root(tfd.Independent(tfd.MixtureSameFamily(
-      mixture_distribution=tfd.Categorical(logits=component_logits),
-      components_distribution=tfd.Normal(loc=locs, scale=scales),
-      name=f"prior"), 1))
-
-  prior_matching_bijector = tfb.Chain(
-    surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
-      prior_structure)[-1])
-
-  if model in ['maf']:
-    maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
-    maf.log_prob(prior_structure.sample(1))
-    trainable_variables = []
-    trainable_variables.extend(list(maf.trainable_variables))
-
-  else:
-    if model == 'np_maf':
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
-                                                         'maf')
-    elif model == 'sandwich':
-      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
-        prior_structure)
+    prior_matching_bijector = tfb.Chain(
+      surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
+        prior_structure)[-1])
+    if model_name == 'maf':
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+    elif model_name == 'np_maf':
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'normalizing_program', 'maf')
+    elif model_name == 'sandwich':
+      maf = surrogate_posteriors._sandwich_maf_normalizing_program(prior_structure)
 
     maf.log_prob(prior_structure.sample(1))
-    trainable_variables = []
-    trainable_variables.extend([component_logits, locs])
-    trainable_variables.extend(list(scales.trainable_variables))
-    trainable_variables.extend(list(maf.trainable_variables))
+
+    return maf, prior_matching_bijector
+
+  @tf.function
+  def optimizer_step(inputs):
+    with tf.GradientTape() as tape:
+      loss = -maf.log_prob(inputs)
+    grads = tape.gradient(loss, maf.trainable_variables)
+    optimizer.apply_gradients(zip(grads, maf.trainable_variables))
+    return loss
+
+  maf, prior_matching_bijector = build_model(model)
 
   X_train = prior_matching_bijector(X)
   dataset = tf.data.Dataset.from_tensor_slices(X_train)
@@ -95,9 +86,7 @@ def train(model, n_components, X, name, save_dir):
     epoch_loss_avg = tf.keras.metrics.Mean()
     for x in dataset:
       # Optimize the model
-      loss_value, grads = grad(maf, x, trainable_variables)
-      optimizer.apply_gradients(zip(grads, trainable_variables))
-
+      loss_value = optimizer_step(x)
       epoch_loss_avg.update_state(loss_value)
 
     train_loss_results.append(epoch_loss_avg.result())
@@ -106,16 +95,8 @@ def train(model, n_components, X, name, save_dir):
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.close()
-  results = {
-    'loss': train_loss_results
-  }
+
   if model in ['np_maf', 'sandwich']:
-    component_logits = tf.convert_to_tensor(component_logits)
-    locs = tf.convert_to_tensor(locs)
-    scales = tf.convert_to_tensor(scales)
-    results['component_logits'] = component_logits
-    results['locs'] = locs
-    results['scales'] = scales
     if model == 'np_maf':
       for i in range(len(maf.distribution.bijector.bijectors)):
         if 'batch_normalization' in maf.distribution.bijector.bijectors[i].name:
@@ -124,10 +105,6 @@ def train(model, n_components, X, name, save_dir):
       for i in range(len(maf.bijector.bijectors)):
         if 'batch_normalization' in maf.bijector.bijectors[i].name == 'batch_normalization':
           maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
-
-
-  with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
-    pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
   plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
