@@ -86,7 +86,7 @@ def train(model, n_components, X, name, save_dir):
   dataset = dataset.shuffle(2048, reshuffle_each_iteration=True).padded_batch(
     128)
 
-  optimizer = tf.optimizers.Adam(learning_rate=5e-5)
+  optimizer = tf.optimizers.Adam(learning_rate=1e-4)
   train_loss_results = []
 
   for epoch in range(num_epochs):
@@ -134,7 +134,7 @@ def train(model, n_components, X, name, save_dir):
 
     if not os.path.exists(f'{save_dir}/bijector_steps'):
       os.makedirs(f'{save_dir}/bijector_steps')
-    x = fixed_maf.distribution.sample(1e-6)
+    x = fixed_maf.distribution.sample(int(1e6))
     plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
     plt.close()
     for bij in reversed(fixed_maf.bijector.bijectors[1:]):
