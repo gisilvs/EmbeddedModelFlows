@@ -134,17 +134,17 @@ def train(model, n_components, X, name, save_dir):
 
     if not os.path.exists(f'{save_dir}/bijector_steps'):
       os.makedirs(f'{save_dir}/bijector_steps')
-    x = fixed_maf.distribution.sample(int(1e4))
+    x = fixed_maf.distribution.sample(int(1e3))
     plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
     plt.close()
     for i in reversed(range(1,len(fixed_maf.bijector.bijectors))):
       bij_name = fixed_maf.bijector.bijectors[i].name
       if 'chain' in bij_name:
         x = fixed_maf.bijector.bijectors[i].forward(x)
-        plot_samples(x, npts=250, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
+        plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
         x = maf.bijector.bijectors[i].forward(x)
-        plot_samples(x, npts=250, name=f'{save_dir}/bijector_steps/{bij_name}_{i}.png')
+        plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/{bij_name}_{i}.png')
       plt.close()
   print(f'{name} done!')
 
