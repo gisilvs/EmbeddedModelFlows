@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 20
+num_epochs = 50
 n = int(1e5)
 n_dims = 2
 
@@ -138,12 +138,13 @@ def train(model, n_components, X, name, save_dir):
     plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
     plt.close()
     for i in reversed(range(1,len(fixed_maf.bijector.bijectors))):
-      if 'chain' in fixed_maf.bijector.bijectors[i].name:
+      bij_name = fixed_maf.bijector.bijectors[i].name
+      if 'chain' in bij_name:
         x = fixed_maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
         x = maf.bijector.bijectors[i].forward(x)
-        plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/{bij.name}.png')
+        plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/{bij_name}.png')
       plt.close()
   print(f'{name} done!')
 
