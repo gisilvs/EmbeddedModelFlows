@@ -147,7 +147,7 @@ def train(model, n_components, X, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['sandwich']
+models = ['maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
