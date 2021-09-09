@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 100
+num_epochs = 20
 n = int(1e5)
 n_dims = 2
 
@@ -119,7 +119,7 @@ def train(model, n_components, X, name, save_dir):
                   name=f'{save_dir}/density_{name}.png')
   plt.close()
 
-  '''if model == 'sandwich':
+  if model == 'sandwich':
     for v in maf.trainable_variables:
       if 'locs' in v.name:
         locs = tf.convert_to_tensor(v)
@@ -137,13 +137,14 @@ def train(model, n_components, X, name, save_dir):
     x = fixed_maf.distribution.sample(int(1e5))
     plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
     plt.close()
-    for bij in reversed(fixed_maf.bijector.bijectors[1:]):
-      x = bij.forward(x)
-      if 'chain' in bij.name:
+    for i in reversed(range(1,len(fixed_maf.bijector.bijectors))):
+      if 'chain' in fixed_maf.bijector.bijectors[i].name:
+        x = fixed_maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
+        x = maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=500, name=f'{save_dir}/bijector_steps/{bij.name}.png')
-      plt.close()'''
+      plt.close()
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
