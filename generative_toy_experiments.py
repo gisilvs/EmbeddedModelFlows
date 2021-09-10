@@ -111,7 +111,7 @@ def train(model, n_components, name, save_dir):
         save_path = checkpoint_manager.save()
         best_loss = train_loss_results[-1]
 
-  new_maf, _ = build_model('np_maf')
+  new_maf, _ = build_model(model)
   new_optimizer = tf.optimizers.Adam(learning_rate=1e-4)
 
   new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
