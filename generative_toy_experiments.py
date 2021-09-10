@@ -117,7 +117,7 @@ def train(model, n_components, name, save_dir):
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    print(loss_value)
+    # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it==0:
