@@ -20,6 +20,26 @@ Root = tfd.JointDistributionCoroutine.Root
 num_iterations = int(5e5)
 n_dims = 2
 
+@tf.function
+def sample(model, model_fixed, n_samples):
+  x = model_fixed.distribution.sample(int(n_samples))
+  results = {'initial_samples': x}
+
+  for i in reversed(range(1, len(model_fixed.bijector.bijectors))):
+    bij_name = model_fixed.bijector.bijectors[i].name
+    if 'chain' in bij_name:
+      x = model_fixed.bijector.bijectors[i].forward(x)
+      results['inverse_mixture'] = x
+
+    else:
+      x = model.bijector.bijectors[i].forward(x)
+      results[f'{bij_name}'] = x
+
+  x = tf.convert_to_tensor(model.bijector.bijectors[0].forward(x))
+  results['prior_matching'] = x
+
+  return results
+
 def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
@@ -153,26 +173,14 @@ def train(model, n_components, name, save_dir):
 
     if not os.path.exists(f'{save_dir}/bijector_steps'):
       os.makedirs(f'{save_dir}/bijector_steps')
-    x = fixed_maf.distribution.sample(int(1e3))
-    plot_samples(x, name=f'{save_dir}/bijector_steps/initial_samples.png')
-    plt.close()
-    for i in reversed(range(1,len(fixed_maf.bijector.bijectors))):
-      bij_name = fixed_maf.bijector.bijectors[i].name
-      if 'chain' in bij_name:
-        x = fixed_maf.bijector.bijectors[i].forward(x)
-        plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
-      else:
-        x = new_maf.bijector.bijectors[i].forward(x)
-        plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/{bij_name}_{i}.png')
-      plt.close()
-    x = tf.convert_to_tensor(new_maf.bijector.bijectors[0].forward(x))
-    plot_samples(x, npts=100,
-                 name=f'{save_dir}/bijector_steps/prior_matching.png')
-    plt.close()
+
+    results = sample(new_maf, fixed_maf, int(1e3))
+    with open(f'{save_dir}/bijector_steps/results.pickle', 'wb') as handle:
+      pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['maf']
+datasets = ["8gaussians"] #, "2spirals", 'checkerboard', "diamond"]
+models = ['np_maf', 'sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
@@ -188,6 +196,6 @@ for data in datasets:
       name = 'maf'
       train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [100]:
+      for n_components in [5, 100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
