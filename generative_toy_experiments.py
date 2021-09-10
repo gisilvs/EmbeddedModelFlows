@@ -1,6 +1,6 @@
 import os
 import pickle
-
+import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -17,11 +17,10 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_epochs = 50
-n = int(1e5)
+num_iterations = int(5e5)
 n_dims = 2
 
-def train(model, n_components, X, name, save_dir):
+def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
     if trainable_mixture:
@@ -81,23 +80,43 @@ def train(model, n_components, X, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  X_train = prior_matching_bijector(X)
-  dataset = tf.data.Dataset.from_tensor_slices(X_train)
-  dataset = dataset.shuffle(2048, reshuffle_each_iteration=True).padded_batch(
-    128)
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=100),
+                                           output_types=tf.float32)
+  dataset = dataset.map(prior_matching_bijector)
 
   optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+  checkpoint = tf.train.Checkpoint(optimizer=optimizer,
+                                   weights=maf.trainable_variables)
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, '/tmp/tf_ckpts',
+                                                  max_to_keep=20)
   train_loss_results = []
 
-  for epoch in range(num_epochs):
+  for it in range(num_iterations):
     epoch_loss_avg = tf.keras.metrics.Mean()
-    for x in dataset:
-      # Optimize the model
-      loss_value = optimizer_step(maf, x)
-      # print(loss_value)
-      epoch_loss_avg.update_state(loss_value)
+    x = next(iter(dataset))
 
-    train_loss_results.append(epoch_loss_avg.result())
+    # Optimize the model
+    loss_value = optimizer_step(maf, x)
+    # print(loss_value)
+    epoch_loss_avg.update_state(loss_value)
+
+    if it==0:
+      train_loss_results.append(epoch_loss_avg.result())
+      best_loss = train_loss_results[-1]
+    elif it % 100 == 0:
+      train_loss_results.append(epoch_loss_avg.result())
+      if tf.math.is_nan(train_loss_results[-1]):
+        break
+      if best_loss > train_loss_results[-1]:
+        save_path = checkpoint_manager.save()
+        best_loss = train_loss_results[-1]
+
+  new_maf, _ = build_model('np_maf')
+  new_optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+
+  new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
+                                       weights=new_maf.trainable_variables)
+  new_checkpoint.restore(tf.train.latest_checkpoint('/tmp/tf_ckpts'))
 
   plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
@@ -106,21 +125,21 @@ def train(model, n_components, X, name, save_dir):
 
   if model in ['np_maf', 'sandwich']:
     if model == 'np_maf':
-      for i in range(len(maf.distribution.bijector.bijectors)):
-        if 'batch_normalization' in maf.distribution.bijector.bijectors[i].name:
-          maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
+      for i in range(len(new_maf.distribution.bijector.bijectors)):
+        if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
+          new_maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
     else:
-      for i in range(len(maf.bijector.bijectors)):
-        if 'batch_normalization' in maf.bijector.bijectors[i].name == 'batch_normalization':
-          maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
+      for i in range(len(new_maf.bijector.bijectors)):
+        if 'batch_normalization' in new_maf.bijector.bijectors[i].name == 'batch_normalization':
+          new_maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
 
-  plot_heatmap_2d(maf, matching_bijector=prior_matching_bijector,
+  plot_heatmap_2d(new_maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
                   name=f'{save_dir}/density_{name}.png')
   plt.close()
 
   if model == 'sandwich':
-    for v in maf.trainable_variables:
+    for v in new_maf.trainable_variables:
       if 'locs' in v.name:
         locs = tf.convert_to_tensor(v)
       elif 'scales' in v.name:
@@ -143,23 +162,23 @@ def train(model, n_components, X, name, save_dir):
         x = fixed_maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/inverse_mixture.png')
       else:
-        x = maf.bijector.bijectors[i].forward(x)
+        x = new_maf.bijector.bijectors[i].forward(x)
         plot_samples(x, npts=100, name=f'{save_dir}/bijector_steps/{bij_name}_{i}.png')
       plt.close()
-    x = tf.convert_to_tensor(maf.bijector.bijectors[0].forward(x))
+    x = tf.convert_to_tensor(new_maf.bijector.bijectors[0].forward(x))
     plot_samples(x, npts=100,
                  name=f'{save_dir}/bijector_steps/prior_matching.png')
     plt.close()
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['sandwich']
+models = ['maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 for data in datasets:
-  X, _ = generate_2d_data(data, batch_size=n)
+  # X, _ = generate_2d_data(data, batch_size=n)
   if not os.path.exists(f'{main_dir}/{data}'):
     os.makedirs(f'{main_dir}/{data}')
   '''plot_samples(X, npts=500, name=f'{main_dir}/{data}/ground_truth.png')
@@ -167,8 +186,8 @@ for data in datasets:
   for model in models:
     if model == 'maf':
       name = 'maf'
-      train(model, 20, X, name, save_dir=f'{main_dir}/{data}')
+      train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
       for n_components in [100]:
         name = f'c{n_components}_{model}'
-        train(model, n_components, X, name, save_dir=f'{main_dir}/{data}')
+        train(model, n_components, name, save_dir=f'{main_dir}/{data}')
