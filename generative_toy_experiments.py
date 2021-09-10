@@ -100,7 +100,7 @@ def train(model, n_components, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=100),
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
 
@@ -117,7 +117,7 @@ def train(model, n_components, name, save_dir):
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    # print(loss_value)
+    print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it==0:
@@ -179,19 +179,20 @@ def train(model, n_components, name, save_dir):
       pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["8gaussians"] #, "2spirals", 'checkerboard', "diamond"]
-models = ['np_maf', 'sandwich']
+datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
+models = ['maf', 'np_maf', 'sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-for data in datasets:
-  # X, _ = generate_2d_data(data, batch_size=n)
-  if not os.path.exists(f'{main_dir}/{data}'):
-    os.makedirs(f'{main_dir}/{data}')
-  '''plot_samples(X, npts=500, name=f'{main_dir}/{data}/ground_truth.png')
-  plt.close()'''
-  for model in models:
+
+for model in models:
+  for data in datasets:
+    '''# X, _ = generate_2d_data(data, batch_size=n)
+    if not os.path.exists(f'{main_dir}/{data}'):
+      os.makedirs(f'{main_dir}/{data}')
+    plot_samples(X, npts=500, name=f'{main_dir}/{data}/ground_truth.png')
+    plt.close()'''
     if model == 'maf':
       name = 'maf'
       train(model, 20, name, save_dir=f'{main_dir}/{data}')

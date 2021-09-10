@@ -15,6 +15,40 @@ def eight_gaussians(centers, batch_size):
   point = (point + center) / 1.414
   return point
 
+@tf.function
+def checkerboard(batch_size):
+  x1 = tf.random.uniform([batch_size]) * 4 - 2
+  x2 = tf.random.uniform([batch_size]) - tf.cast(
+    tf.squeeze(tf.random.categorical(tf.ones([1, 2]) / 2, batch_size)),
+    tf.float32) * 2.
+  x2 = x2 + (tf.math.floor(x1) % 2)
+  return tf.concat([x1[:, None], x2[:, None]], 1) * 2
+
+@tf.function
+def two_spirals(batch_size):
+  n = tf.math.sqrt(tf.random.uniform([batch_size // 2, 1])) * 540 * (
+        2 * np.pi) / 360
+  d1x = -tf.math.cos(n) * n + tf.random.uniform([batch_size // 2, 1]) * 0.5
+  d1y = tf.math.sin(n) * n + tf.random.uniform([batch_size // 2, 1]) * 0.5
+  x = tf.concat(
+    [tf.concat([d1x, d1y], axis=1), tf.concat([-d1x, -d1y], axis=1)],
+    axis=0) / 3
+  return x + tf.random.normal(tf.shape(x)) * 0.1
+
+@tf.function
+def diamond(batch_size, bound, width, covariance_factor, rotation_matrix):
+  x = tf.linspace(-bound, bound, width)
+  x, y = x[:, None], x[:, None]
+  x1 = tf.concat([x, tf.ones_like(x)], axis=-1)
+  y1 = tf.concat([tf.ones_like(y), y], axis=-1)
+  means = tf.reshape(x1[:, None] * y1[None], (-1, 2))
+  means = means + tf.random.uniform(tf.shape(means)) * 1e-3
+  index = tf.squeeze(
+    tf.random.categorical(tf.ones([1, width ** 2]) / width ** 2, batch_size))
+  noise = tf.random.normal([batch_size, 2])
+  data = tf.gather(means, index) + noise @ covariance_factor
+  return data @ rotation_matrix
+
 # Dataset iterator for generation of dataset samples
 def generate_2d_data(data, rng=None, batch_size=1000):
   if rng is None:
@@ -34,45 +68,26 @@ def generate_2d_data(data, rng=None, batch_size=1000):
   elif data == "diamond":
     bound = -2.5
     width = 15
-    rotate=True
+    covariance_factor = 0.06 * tf.eye(2)
+    rotation_matrix = tf.convert_to_tensor(
+      [[1 / np.sqrt(2), -1 / np.sqrt(2)], [1 / np.sqrt(2), 1 / np.sqrt(2)]],
+      dtype=tf.float32)
     while True:
-      means = np.array(
-        [
-          (x + 1e-3 * np.random.rand(), y + 1e-3 * np.random.rand())
-          for x in np.linspace(-bound, bound, width)
-          for y in np.linspace(-bound, bound, width)
-        ]
-      )
-
-      covariance_factor = 0.06 * np.eye(2)
-
-      index = np.random.choice(range(width ** 2), size=batch_size, replace=True)
-      noise = np.random.randn(batch_size, 2)
-      data = means[index] + noise @ covariance_factor
-      if rotate:
-        rotation_matrix = np.array(
-          [[1 / np.sqrt(2), -1 / np.sqrt(2)], [1 / np.sqrt(2), 1 / np.sqrt(2)]]
-        )
-        data = data @ rotation_matrix
-      data = data.astype(np.float32)
-      yield data
+      yield diamond(batch_size, bound, width, covariance_factor, rotation_matrix)
 
   elif data == "2spirals":
     while True:
+
       n = np.sqrt(np.random.rand(batch_size // 2, 1)) * 540 * (2 * np.pi) / 360
       d1x = -np.cos(n) * n + np.random.rand(batch_size // 2, 1) * 0.5
       d1y = np.sin(n) * n + np.random.rand(batch_size // 2, 1) * 0.5
       x = np.vstack((np.hstack((d1x, d1y)), np.hstack((-d1x, -d1y)))) / 3
       x += np.random.randn(*x.shape) * 0.1
-      yield np.array(x, dtype='float32')
+      yield two_spirals(batch_size)
 
   elif data == "checkerboard":
     while True:
-      x1 = np.random.rand(batch_size) * 4 - 2
-      x2_ = np.random.rand(batch_size) - np.random.randint(0, 2, batch_size) * 2
-      x2 = x2_ + (np.floor(x1) % 2)
-      data = np.concatenate([x1[:, None], x2[:, None]], 1) * 2
-      yield np.array(data, dtype="float32")
+      yield checkerboard(batch_size)
 
 
 # distribution generator for initial distribution and sampling
@@ -158,7 +173,3 @@ def generate_2d_dist(distribution, rng=None):
 
   else:
     return generate_2d_dist("normal", rng)
-
-'''gen = generate_2d_data('8gaussians')
-
-next(gen)'''
