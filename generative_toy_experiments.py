@@ -104,7 +104,7 @@ def train(model, n_components, name, save_dir):
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
 
-  optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+  optimizer = tf.optimizers.Adam(learning_rate=5e-5)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, '/tmp/tf_ckpts',
