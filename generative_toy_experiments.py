@@ -103,8 +103,8 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-
-  optimizer = tf.optimizers.Adam(learning_rate=5e-5)
+  lr = 1e-5
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, '/tmp/tf_ckpts',
@@ -132,7 +132,7 @@ def train(model, n_components, name, save_dir):
         best_loss = train_loss_results[-1]
 
   new_maf, _ = build_model(model)
-  new_optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+  new_optimizer = tf.optimizers.Adam(learning_rate=lr)
 
   new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
                                        weights=new_maf.trainable_variables)
