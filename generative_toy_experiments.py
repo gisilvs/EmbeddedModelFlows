@@ -53,7 +53,7 @@ def train(model, n_components, name, save_dir):
            in
            range(n_dims)])
         scales = tf.convert_to_tensor(
-          [[1. for _ in range(n_components)] for _ in
+          [[3. for _ in range(n_components)] for _ in
            range(n_dims)])
       else:
         component_logits = tf.Variable(
@@ -117,7 +117,7 @@ def train(model, n_components, name, save_dir):
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    print(loss_value)
+    # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it==0:
