@@ -56,11 +56,15 @@ def train(model, n_components, name, save_dir):
           [[1. for _ in range(n_components)] for _ in
            range(n_dims)])
       else:
+        if model_name == 'np_maf':
+          loc_range = 4.
+        else:
+          loc_range = 2.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
         locs = tf.Variable(
-          [tf.linspace(-2., 2., n_components) for _ in range(n_dims)],
+          [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
           [[1. for _ in range(n_components)] for _ in
@@ -103,7 +107,7 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-4
+  lr = 1e-5
   optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
@@ -180,7 +184,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['sandwich']
+models = ['maf','np_maf','sandwich']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
