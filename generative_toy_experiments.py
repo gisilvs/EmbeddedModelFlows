@@ -103,7 +103,7 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-4
+  lr = 1e-5
   optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
