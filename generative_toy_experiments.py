@@ -107,7 +107,7 @@ def train(model, n_components, name, save_dir):
   optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
-  checkpoint_manager = tf.train.CheckpointManager(checkpoint, '/tmp/tf_ckpts',
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{name}/tf_ckpts',
                                                   max_to_keep=20)
   train_loss_results = []
 
@@ -136,7 +136,7 @@ def train(model, n_components, name, save_dir):
 
   new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
                                        weights=new_maf.trainable_variables)
-  new_checkpoint.restore(tf.train.latest_checkpoint('/tmp/tf_ckpts'))
+  new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
 
   plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
@@ -175,7 +175,7 @@ def train(model, n_components, name, save_dir):
       os.makedirs(f'{save_dir}/bijector_steps')
 
     results = sample(new_maf, fixed_maf, int(1e3))
-    with open(f'{save_dir}/bijector_steps/results.pickle', 'wb') as handle:
+    with open(f'{save_dir}/bijector_steps/{name}.pickle', 'wb') as handle:
       pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
