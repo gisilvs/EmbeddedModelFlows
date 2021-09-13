@@ -157,8 +157,8 @@ def train(model, n_components, name, save_dir):
               format="png")
   plt.close()
 
-  if model in ['np_maf', 'sandwich']:
-    if model == 'np_maf':
+  if model in ['np_maf', 'sandwich', 'rqs_maf']:
+    if model == 'np_maf' or model == 'rqs_maf':
       for i in range(len(new_maf.distribution.bijector.bijectors)):
         if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
           new_maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
