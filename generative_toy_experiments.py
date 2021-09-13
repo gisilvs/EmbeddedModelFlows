@@ -197,6 +197,6 @@ for model in models:
       name = 'maf'
       train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [5, 100]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
