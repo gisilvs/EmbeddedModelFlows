@@ -53,7 +53,7 @@ def train(model, n_components, name, save_dir):
            in
            range(n_dims)])
         scales = tf.convert_to_tensor(
-          [[3. for _ in range(n_components)] for _ in
+          [[1. for _ in range(n_components)] for _ in
            range(n_dims)])
       else:
         component_logits = tf.Variable(
