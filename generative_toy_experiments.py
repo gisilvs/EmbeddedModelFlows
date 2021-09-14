@@ -194,19 +194,16 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['np_maf']
+models = ['rqs_maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-for model in models:
-  for data in datasets:
-    '''# X, _ = generate_2d_data(data, batch_size=n)
-    if not os.path.exists(f'{main_dir}/{data}'):
-      os.makedirs(f'{main_dir}/{data}')
-    plot_samples(X, npts=500, name=f'{main_dir}/{data}/ground_truth.png')
-    plt.close()'''
+for data in datasets:
+  if not os.path.exists(f'{main_dir}/{data}'):
+    os.makedirs(f'{main_dir}/{data}')
+  for model in models:
     if model == 'maf':
       name = 'maf'
       train(model, 20, name, save_dir=f'{main_dir}/{data}')
@@ -215,6 +212,6 @@ for model in models:
       for nbins in [8, 128]:
         train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [5, 100]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
