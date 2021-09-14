@@ -44,7 +44,7 @@ def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
     if trainable_mixture:
-      if model_name == 'maf':
+      if model_name == 'maf' or model_name=='rqs_maf':
         component_logits = tf.convert_to_tensor(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)])
@@ -90,7 +90,15 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
+    elif model_name == 'rqs_maf':
+      flow_params = {
+      'num_flow_layers': 2,
+      'nbins': nbins
+    }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, surrogate_posterior_name='rqs_maf', flow_params=flow_params)
+      maf.sample(1)
     maf.log_prob(prior_structure.sample(1))
+
 
     return maf, prior_matching_bijector
 
@@ -107,8 +115,10 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-5
-  optimizer = tf.optimizers.Adam(learning_rate=lr)
+  lr = 1e-4
+  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=num_iterations)
+  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{name}/tf_ckpts',
@@ -147,8 +157,8 @@ def train(model, n_components, name, save_dir):
               format="png")
   plt.close()
 
-  if model in ['np_maf', 'sandwich']:
-    if model == 'np_maf':
+  if model in ['np_maf', 'sandwich', 'rqs_maf']:
+    if model == 'np_maf' or model == 'rqs_maf':
       for i in range(len(new_maf.distribution.bijector.bijectors)):
         if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
           new_maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
@@ -184,7 +194,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['maf','np_maf','sandwich']
+models = ['np_maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
@@ -200,7 +210,11 @@ for model in models:
     if model == 'maf':
       name = 'maf'
       train(model, 20, name, save_dir=f'{main_dir}/{data}')
+    elif model == 'rqs_maf':
+      name = 'rqs_maf'
+      for nbins in [8, 128]:
+        train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [100]:
+      for n_components in [5, 100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
