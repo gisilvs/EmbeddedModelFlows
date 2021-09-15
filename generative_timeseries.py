@@ -139,8 +139,8 @@ def train(model, name, save_dir):
         new_maf.distribution.bijector.bijectors[
           i].bijector.batchnorm.trainable = False
 
-  if not os.path.exists(f'{save_dir}/bijector_steps'):
-    os.makedirs(f'{save_dir}/bijector_steps')
+  if not os.path.exists(f'{save_dir}/samples'):
+    os.makedirs(f'{save_dir}/samples')
 
   results = tf.convert_to_tensor(new_maf.sample(100))
   with open(f'{save_dir}/samples/{name}.pickle', 'wb') as handle:
