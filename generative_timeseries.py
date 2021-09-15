@@ -111,8 +111,9 @@ def train(model, name, save_dir):
     if it == 0:
       train_loss_results.append(epoch_loss_avg.result())
       best_loss = train_loss_results[-1]
-    elif it % 100 == 0:
+    elif it % 10 == 0:
       train_loss_results.append(epoch_loss_avg.result())
+      print(train_loss_results[-1])
       if tf.math.is_nan(train_loss_results[-1]):
         break
       if best_loss > train_loss_results[-1]:
@@ -153,12 +154,12 @@ if not os.path.isdir(main_dir):
 for model in models:
   if model == 'maf':
     name = 'maf'
-    train(model, name, save_dir=f'{main_dir}/')
+    train(model, name, save_dir=f'{main_dir}')
   elif model == 'rqs_maf':
     name = 'rqs_maf'
     for nbins in [8, 128]:
-      train(model, name, save_dir=f'{main_dir}/')
+      train(model, name, save_dir=f'{main_dir}')
   else:
     for n_components in [100]:
       name = f'c{n_components}_{model}'
-      train(model, name, save_dir=f'{main_dir}/')
+      train(model, name, save_dir=f'{main_dir}')
