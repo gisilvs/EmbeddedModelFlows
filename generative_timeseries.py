@@ -111,9 +111,9 @@ def train(model, name, save_dir):
     if it == 0:
       train_loss_results.append(epoch_loss_avg.result())
       best_loss = train_loss_results[-1]
-    elif it % 10 == 0:
+    elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
-      print(train_loss_results[-1])
+      #print(train_loss_results[-1])
       if tf.math.is_nan(train_loss_results[-1]):
         break
       if best_loss > train_loss_results[-1]:
