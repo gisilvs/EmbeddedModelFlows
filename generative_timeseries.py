@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e3)
+num_iterations = int(1e4)
 
 time_step_dim = 3
 series_len = 30
@@ -148,7 +148,7 @@ def train(model, name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf']
+models = ['maf', 'np_maf']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
