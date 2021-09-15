@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e3)
+num_iterations = int(1e5)
 
 time_step_dim = 3
 series_len = 30
@@ -56,13 +56,15 @@ def train(model, name, save_dir):
   def build_model(model_name):
     if model=='maf':
       scales = [tf.ones(time_step_dim) for _ in range(series_len)]
+      initial_mean = tf.zeros(time_step_dim)
     else:
       scales = [tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
               for _ in range(series_len)]
+      initial_mean = tf.Variable(tf.zeros(time_step_dim))
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
-      new = yield Root(tfd.Independent(tfd.Normal(loc=0.,
+      new = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
                                   scale=scales[0]),1))
 
       for t in range(1, series_len):
@@ -79,6 +81,10 @@ def train(model, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'normalizing_program',
                                                          'maf')
+    elif model_name == 'sandwich':
+      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
+        prior_structure)
+
     maf.log_prob(prior_structure.sample(1))
 
     return maf, prior_matching_bijector
@@ -113,6 +119,7 @@ def train(model, name, save_dir):
       best_loss = train_loss_results[-1]
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
+      #print(train_loss_results[-1])
       if tf.math.is_nan(train_loss_results[-1]):
         break
       if best_loss > train_loss_results[-1]:
@@ -137,14 +144,22 @@ def train(model, name, save_dir):
         i].name:
         new_maf.distribution.bijector.bijectors[
           i].bijector.batchnorm.trainable = False
+  else:
+    for i in range(len(new_maf.bijector.bijectors)):
+      if 'batch_normalization' in new_maf.bijector.bijectors[
+        i].name == 'batch_normalization':
+        new_maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
 
-  results = new_maf.sample(100)
+  if not os.path.exists(f'{save_dir}/samples'):
+    os.makedirs(f'{save_dir}/samples')
+
+  results = tf.convert_to_tensor(new_maf.sample(100))
   with open(f'{save_dir}/samples/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
   print(f'{name} done!')
-models = ['maf', 'np_maf']
+models = ['maf', 'np_maf', 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
@@ -153,12 +168,11 @@ if not os.path.isdir(main_dir):
 for model in models:
   if model == 'maf':
     name = 'maf'
-    train(model, name, save_dir=f'{main_dir}/')
+    train(model, name, save_dir=f'{main_dir}')
   elif model == 'rqs_maf':
     name = 'rqs_maf'
     for nbins in [8, 128]:
-      train(model, name, save_dir=f'{main_dir}/')
+      train(model, name, save_dir=f'{main_dir}')
   else:
     for n_components in [100]:
-      name = f'c{n_components}_{model}'
-      train(model, name, save_dir=f'{main_dir}/')
+      train(model, model, save_dir=f'{main_dir}')
