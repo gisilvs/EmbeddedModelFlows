@@ -158,7 +158,7 @@ def train(model, n_components, name, save_dir):
   plt.close()
 
   if model in ['np_maf', 'sandwich', 'rqs_maf']:
-    if model == 'np_maf' or model == 'rqs_maf':
+    if model == 'np_maf':
       for i in range(len(new_maf.distribution.bijector.bijectors)):
         if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
           new_maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
@@ -194,7 +194,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
-models = ['np_maf', 'sandwich']
+models = ['rqs_maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
