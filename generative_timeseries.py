@@ -55,7 +55,7 @@ def train(model, name, save_dir):
 
   def build_model(model_name):
     if model=='maf':
-      scales = [tf.ones(time_step_dim) for _ in range(series_len)]
+      scales = tf.ones(time_step_dim)
     else:
       scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
     initial_mean = tf.zeros(time_step_dim)
