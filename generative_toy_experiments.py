@@ -67,7 +67,7 @@ def train(model, n_components, name, save_dir):
           [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
-          [[1. for _ in range(n_components)] for _ in
+          [[3. for _ in range(n_components)] for _ in
            range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
@@ -212,6 +212,6 @@ for data in datasets:
       for nbins in [8, 128]:
         train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [20]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
