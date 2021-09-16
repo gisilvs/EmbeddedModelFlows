@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e5)
+num_iterations = int(1e4)
 
 time_step_dim = 3
 series_len = 30
@@ -96,9 +96,9 @@ def train(model, name, save_dir):
                                              output_types=tf.float32).prefetch(tf.data.AUTOTUNE)
 
   lr = 1e-4
-  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=num_iterations)
-  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
+  '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=num_iterations)'''
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{model}/tf_ckpts',
