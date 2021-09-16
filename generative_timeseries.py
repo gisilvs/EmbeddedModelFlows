@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e4)
+num_iterations = int(2e4)
 
 time_step_dim = 3
 series_len = 30
@@ -56,20 +56,18 @@ def train(model, name, save_dir):
   def build_model(model_name):
     if model=='maf':
       scales = [tf.ones(time_step_dim) for _ in range(series_len)]
-      initial_mean = tf.zeros(time_step_dim)
     else:
-      scales = [tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
-              for _ in range(series_len)]
-      initial_mean = tf.Variable(tf.zeros(time_step_dim))
+      scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
+    initial_mean = tf.zeros(time_step_dim)
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
       new = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
-                                  scale=scales[0]),1))
+                                  scale=scales),1))
 
       for t in range(1, series_len):
         new = yield tfd.Independent(tfd.Normal(loc=new,
-                               scale=scales[t]), 1)
+                               scale=scales), 1)
 
     prior_matching_bijector = tfb.Chain(
       surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
@@ -161,7 +159,7 @@ def train(model, name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf', 'np_maf', 'sandwich']
+models = ['maf', 'np_maf',] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
