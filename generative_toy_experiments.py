@@ -67,7 +67,7 @@ def train(model, n_components, name, save_dir):
           [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
-          [[3. for _ in range(n_components)] for _ in
+          [[1. for _ in range(n_components)] for _ in
            range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
@@ -115,7 +115,7 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-4
+  lr = 1e-6
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
   optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
