@@ -153,7 +153,9 @@ def train(model, name, save_dir):
   if not os.path.exists(f'{save_dir}/samples'):
     os.makedirs(f'{save_dir}/samples')
 
-  results = tf.convert_to_tensor(new_maf.sample(100))
+  results = {'samples' : tf.convert_to_tensor(new_maf.sample(100)),
+             'neg_elbo': best_loss
+             }
   with open(f'{save_dir}/samples/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
