@@ -59,7 +59,7 @@ def train(model, n_components, name, save_dir):
         if model_name == 'np_maf':
           loc_range = 4.
         else:
-          loc_range = 1.
+          loc_range = 4.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
@@ -115,7 +115,7 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-5
+  lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
   optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
