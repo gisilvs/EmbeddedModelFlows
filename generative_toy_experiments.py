@@ -212,6 +212,6 @@ for data in datasets:
       for nbins in [8, 128]:
         train(model, 20, name, save_dir=f'{main_dir}/{data}')
     else:
-      for n_components in [100]:
+      for n_components in [20]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/{data}')
