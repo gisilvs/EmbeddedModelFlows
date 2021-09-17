@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(2e4)
+num_iterations = int(4e4)
 
 time_step_dim = 3
 series_len = 30
@@ -44,7 +44,7 @@ def time_series_gen(batch_size):
   while True:
     yield lorenz_system.sample(batch_size)
 
-def train(model, name, save_dir):
+def train(model, name, structure, save_dir):
 
   def optimizer_step(net, inputs):
     with tf.GradientTape() as tape:
@@ -60,14 +60,28 @@ def train(model, name, save_dir):
       scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
     initial_mean = tf.zeros(time_step_dim)
 
-    @tfd.JointDistributionCoroutine
-    def prior_structure():
-      new = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
-                                  scale=scales),1))
+    if structure == 'continuity':
+      @tfd.JointDistributionCoroutine
+      def prior_structure():
+        new = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
+                                    scale=tf.ones_like(initial_mean)),1))
 
-      for t in range(1, series_len):
-        new = yield tfd.Independent(tfd.Normal(loc=new,
-                               scale=scales), 1)
+        for t in range(1, series_len):
+          new = yield tfd.Independent(tfd.Normal(loc=new,
+                                 scale=scales), 1)
+
+    elif structure == 'smoothness':
+      @tfd.JointDistributionCoroutine
+      def prior_structure():
+        previous = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
+                                                    scale=tf.ones_like(initial_mean)), 1))
+        current = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
+                                                    scale=tf.ones_like(initial_mean)), 1))
+        for t in range(2, series_len):
+          new = yield tfd.Independent(tfd.Normal(loc=2 * current - previous,
+                                                 scale=scales), 1)
+          previous = current
+          current = new
 
     prior_matching_bijector = tfb.Chain(
       surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
@@ -103,8 +117,9 @@ def train(model, name, save_dir):
                                                   max_to_keep=20)
   train_loss_results = []
 
+  epoch_loss_avg = tf.keras.metrics.Mean()
   for it in range(num_iterations):
-    epoch_loss_avg = tf.keras.metrics.Mean()
+
     x = next(iter(dataset))
 
     # Optimize the model
@@ -113,8 +128,8 @@ def train(model, name, save_dir):
     epoch_loss_avg.update_state(loss_value)
 
     if it == 0:
-      train_loss_results.append(epoch_loss_avg.result())
       best_loss = train_loss_results[-1]
+      epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
@@ -123,6 +138,7 @@ def train(model, name, save_dir):
       if best_loss > train_loss_results[-1]:
         save_path = checkpoint_manager.save()
         best_loss = train_loss_results[-1]
+      epoch_loss_avg = tf.keras.metrics.Mean()
 
   new_maf, _ = build_model(model)
   new_optimizer = tf.optimizers.Adam(learning_rate=lr)
@@ -168,11 +184,11 @@ if not os.path.isdir(main_dir):
 for model in models:
   if model == 'maf':
     name = 'maf'
-    train(model, name, save_dir=f'{main_dir}')
+    train(model, name, structure='continuity', save_dir=f'{main_dir}')
   elif model == 'rqs_maf':
     name = 'rqs_maf'
     for nbins in [8, 128]:
       train(model, name, save_dir=f'{main_dir}')
   else:
-    for n_components in [100]:
-      train(model, model, save_dir=f'{main_dir}')
+    for structure in ['continuity', 'smoothness']:
+      train(model, model, structure, save_dir=f'{main_dir}')
