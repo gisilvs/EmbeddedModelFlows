@@ -59,7 +59,7 @@ def train(model, n_components, name, save_dir):
         if model_name == 'np_maf':
           loc_range = 4.
         else:
-          loc_range = 4.
+          loc_range = 10.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
@@ -67,7 +67,7 @@ def train(model, n_components, name, save_dir):
           [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
-          [[1. for _ in range(n_components)] for _ in
+          [[3. for _ in range(n_components)] for _ in
            range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
@@ -115,7 +115,7 @@ def train(model, n_components, name, save_dir):
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-6
+  lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
   optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
@@ -124,19 +124,18 @@ def train(model, n_components, name, save_dir):
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{name}/tf_ckpts',
                                                   max_to_keep=20)
   train_loss_results = []
-
+  epoch_loss_avg = tf.keras.metrics.Mean()
   for it in range(num_iterations):
-    epoch_loss_avg = tf.keras.metrics.Mean()
-    x = next(iter(dataset))
 
+    x = next(iter(dataset))
     # Optimize the model
     loss_value = optimizer_step(maf, x)
     # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it==0:
-      train_loss_results.append(epoch_loss_avg.result())
-      best_loss = train_loss_results[-1]
+      best_loss = epoch_loss_avg.result()
+      epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
       if tf.math.is_nan(train_loss_results[-1]):
@@ -144,6 +143,7 @@ def train(model, n_components, name, save_dir):
       if best_loss > train_loss_results[-1]:
         save_path = checkpoint_manager.save()
         best_loss = train_loss_results[-1]
+      epoch_loss_avg = tf.keras.metrics.Mean()
 
   new_maf, _ = build_model(model)
   new_optimizer = tf.optimizers.Adam(learning_rate=lr)
