@@ -128,7 +128,7 @@ def train(model, name, structure, save_dir):
     epoch_loss_avg.update_state(loss_value)
 
     if it == 0:
-      best_loss = train_loss_results[-1]
+      best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
