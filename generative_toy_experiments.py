@@ -130,9 +130,11 @@ def train(model, n_components, name, save_dir):
     x = next(iter(dataset))
     # Optimize the model
     loss_value = optimizer_step(maf, x)
+    if np.array(tf.math.is_nan(loss_value)).any():
+      a=0
     # print(loss_value)
+    save_path = checkpoint_manager.save()
     epoch_loss_avg.update_state(loss_value)
-
     if it==0:
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
@@ -193,7 +195,7 @@ def train(model, n_components, name, save_dir):
       pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
+datasets = ["2spirals", "diamond"]
 models = ['sandwich']
 
 main_dir = '2d_toy_results'
