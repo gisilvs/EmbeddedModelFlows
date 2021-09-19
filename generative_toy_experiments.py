@@ -59,7 +59,7 @@ def train(model, n_components, name, save_dir):
         if model_name == 'np_maf':
           loc_range = 4.
         else:
-          loc_range = 50.
+          loc_range = 4.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
@@ -67,7 +67,7 @@ def train(model, n_components, name, save_dir):
           [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
-          [[3. for _ in range(n_components)] for _ in
+          [[1. for _ in range(n_components)] for _ in
            range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
@@ -195,7 +195,7 @@ def train(model, n_components, name, save_dir):
       pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["2spirals", "diamond"]
+datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
 models = ['sandwich']
 
 main_dir = '2d_toy_results'
