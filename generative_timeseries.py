@@ -124,7 +124,7 @@ def train(model, name, structure, save_dir):
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    # print(loss_value)
+    print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it == 0:
@@ -175,7 +175,7 @@ def train(model, name, structure, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf', 'np_maf',] # 'sandwich']
+models = ['np_maf',] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
@@ -190,5 +190,6 @@ for model in models:
     for nbins in [8, 128]:
       train(model, name, save_dir=f'{main_dir}')
   else:
-    for structure in ['continuity', 'smoothness']:
+    for structure in ['continuity']: #, 'smoothness']:
+      name = f'{model}_{structure}'
       train(model, model, structure, save_dir=f'{main_dir}')
