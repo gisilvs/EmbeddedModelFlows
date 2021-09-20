@@ -112,9 +112,9 @@ def train(model, n_components, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(1)),
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
-  dataset = dataset.map(prior_matching_bijector).map(tf.squeeze).batch(100).prefetch(tf.data.AUTOTUNE)
+  dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
