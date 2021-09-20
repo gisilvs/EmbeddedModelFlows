@@ -163,11 +163,11 @@ def train(model, n_components, name, save_dir):
     if model == 'np_maf':
       for i in range(len(new_maf.distribution.bijector.bijectors)):
         if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
-          new_maf.distribution.bijector.bijectors[i].bijector.batchnorm.trainable = False
+          new_maf.distribution.bijector.bijectors[i].batchnorm.trainable = False
     else:
       for i in range(len(new_maf.bijector.bijectors)):
         if 'batch_normalization' in new_maf.bijector.bijectors[i].name == 'batch_normalization':
-          new_maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
+          new_maf.bijector.bijectors[i].batchnorm.trainable = False
 
   plot_heatmap_2d(new_maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
