@@ -181,7 +181,7 @@ def train(model, n_components, name, save_dir):
 
   eval_dataset = tf.data.Dataset.from_generator(
     functools.partial(generate_2d_data, data=data, batch_size=int(1e6)),
-    output_types=tf.float32)
+    output_types=tf.float32).map(prior_matching_bijector)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
