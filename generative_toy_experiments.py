@@ -112,7 +112,7 @@ def train(model, n_components, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(1000)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(10000)
   lr = 1e-4
