@@ -157,12 +157,12 @@ def train(model, name, structure, save_dir):
       if 'batch_normalization' in new_maf.distribution.bijector.bijectors[
         i].name:
         new_maf.distribution.bijector.bijectors[
-          i].bijector.batchnorm.trainable = False
+          i].batchnorm.trainable = False
   else:
     for i in range(len(new_maf.bijector.bijectors)):
       if 'batch_normalization' in new_maf.bijector.bijectors[
         i].name == 'batch_normalization':
-        new_maf.bijector.bijectors[i].bijector.batchnorm.trainable = False
+        new_maf.bijector.bijectors[i].batchnorm.trainable = False
 
   if not os.path.exists(f'{save_dir}/samples'):
     os.makedirs(f'{save_dir}/samples')
