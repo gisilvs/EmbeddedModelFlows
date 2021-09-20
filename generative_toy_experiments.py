@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e5)
+num_iterations = int(100)
 n_dims = 2
 
 @tf.function
@@ -112,9 +112,9 @@ def train(model, n_components, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(1)),
                                            output_types=tf.float32)
-  dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
+  dataset = dataset.map(prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
@@ -154,6 +154,11 @@ def train(model, n_components, name, save_dir):
                                        weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
 
+  checkpoint_manager = tf.train.CheckpointManager(new_checkpoint,
+                                                  f'{save_dir}/checkpoints/{name}',
+                                                  max_to_keep=20)
+  save_path = checkpoint_manager.save()
+
   plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
@@ -174,6 +179,17 @@ def train(model, n_components, name, save_dir):
                   name=f'{save_dir}/density_{name}.png')
   plt.close()
 
+  eval_dataset = tf.data.Dataset.from_generator(
+    functools.partial(generate_2d_data, data=data, batch_size=int(1e6)),
+    output_types=tf.float32)
+
+  eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
+
+  results = {
+    'loss': train_loss_results,
+    'loss_eval': eval_log_prob,
+  }
+
   if model == 'sandwich':
     for v in new_maf.trainable_variables:
       if 'locs' in v.name:
@@ -190,9 +206,9 @@ def train(model, n_components, name, save_dir):
     if not os.path.exists(f'{save_dir}/bijector_steps'):
       os.makedirs(f'{save_dir}/bijector_steps')
 
-    results = sample(new_maf, fixed_maf, int(1e3))
-    with open(f'{save_dir}/bijector_steps/{name}.pickle', 'wb') as handle:
-      pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    results['samples'] = sample(new_maf, fixed_maf, int(1e3))
+  with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
+    pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
 datasets = ["8gaussians", "2spirals", 'checkerboard', "diamond"]
@@ -201,19 +217,21 @@ models = ['sandwich', 'np_maf', 'maf']
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
+n_runs = 5
 
-for data in datasets:
-  if not os.path.exists(f'{main_dir}/{data}'):
-    os.makedirs(f'{main_dir}/{data}')
-  for model in models:
-    if model == 'maf':
-      name = 'maf'
-      train(model, 20, name, save_dir=f'{main_dir}/{data}')
-    elif model == 'rqs_maf':
-      name = 'rqs_maf'
-      for nbins in [8, 128]:
-        train(model, 20, name, save_dir=f'{main_dir}/{data}')
-    else:
-      for n_components in [100]:
-        name = f'c{n_components}_{model}'
-        train(model, n_components, name, save_dir=f'{main_dir}/{data}')
+for run in range(n_runs):
+  for data in datasets:
+    if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
+      os.makedirs(f'{main_dir}/run_{run}/{data}')
+    for model in models:
+      if model == 'maf':
+        name = 'maf'
+        train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'rqs_maf':
+        name = 'rqs_maf'
+        for nbins in [8, 128]:
+          train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      else:
+        for n_components in [100]:
+          name = f'c{n_components}_{model}'
+          train(model, n_components, name, save_dir=f'{main_dir}/run_{run}/{data}')
