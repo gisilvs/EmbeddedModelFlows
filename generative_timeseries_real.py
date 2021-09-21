@@ -3,10 +3,8 @@ import pickle
 import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
-
-from toy_data import generate_2d_data
 import surrogate_posteriors
-from plot_utils import plot_heatmap_2d, plot_samples
+import timeseries_datasets
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,32 +17,7 @@ Root = tfd.JointDistributionCoroutine.Root
 
 num_iterations = int(5e4)
 
-time_step_dim = 3
-series_len = 30
-
-@tfd.JointDistributionCoroutine
-def lorenz_system():
-  truth = []
-  innovation_noise = .1
-  step_size = 0.02
-  loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=3))
-  for t in range(1, 30):
-    x, y, z = tf.unstack(loc, axis=-1)
-    truth.append(x)
-    dx = 10 * (y - x)
-    dy = x * (28 - z) - y
-    dz = x * y - 8 / 3 * z
-    delta = tf.stack([dx, dy, dz], axis=-1)
-    loc = yield tfd.Independent(
-      tfd.Normal(loc + step_size * delta,
-                 tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
-      reinterpreted_batch_ndims=1)
-
-def time_series_gen(batch_size):
-  while True:
-    yield lorenz_system.sample(batch_size)
-
-def train(model, name, structure, save_dir):
+def train(model, name, structure, dataset_name, save_dir):
 
   def optimizer_step(net, inputs):
     with tf.GradientTape() as tape:
@@ -52,6 +25,13 @@ def train(model, name, structure, save_dir):
     grads = tape.gradient(loss, net.trainable_variables)
     optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
+
+  def eval(model, inputs):
+    return -model.log_prob(inputs)
+
+  if dataset_name == 'co2':
+    time_step_dim = 1
+    series_len = 12
 
   def build_model(model_name):
     if model=='maf':
@@ -104,9 +84,14 @@ def train(model, name, structure, save_dir):
   maf, prior_matching_bijector = build_model(model)
 
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100)),
-                                             output_types=tf.float32).prefetch(tf.data.AUTOTUNE)
-
+  if dataset_name == 'co2':
+    train, valid, test = timeseries_datasets.load_mauna_loa_atmospheric_co2()
+    batch_size = 32
+  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(int(10e3))
+  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(int(10e3))
+  test = tf.data.Dataset.from_tensor_slices(test).map(
+    prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(
+    int(10e3))
   lr = 1e-4
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
@@ -116,29 +101,41 @@ def train(model, name, structure, save_dir):
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{model}/tf_ckpts',
                                                   max_to_keep=20)
   train_loss_results = []
+  valid_loss_results = []
 
-  epoch_loss_avg = tf.keras.metrics.Mean()
+
+  counter = 0
   for it in range(num_iterations):
 
-    x = next(iter(dataset))
+    train_loss_avg = tf.keras.metrics.Mean()
+    for x in train:
 
-    # Optimize the model
-    loss_value = optimizer_step(maf, x)
-    #print(loss_value)
-    epoch_loss_avg.update_state(loss_value)
+      # Optimize the model
+      loss_value = optimizer_step(maf, x)
+      #print(loss_value)
+      train_loss_avg.update_state(loss_value)
+
+    train_loss_results.append(train_loss_avg.result())
+
+    valid_loss_avg = tf.keras.metrics.Mean()
+    for x in valid:
+      loss_value = eval(maf, x)
+      valid_loss_avg.update_state(loss_value)
+
+    valid_loss_results.append(valid_loss_avg.result())
 
     if it == 0:
-      best_loss = epoch_loss_avg.result()
-      epoch_loss_avg = tf.keras.metrics.Mean()
-    elif it % 100 == 0:
-      train_loss_results.append(epoch_loss_avg.result())
-      #print(train_loss_results[-1])
-      if tf.math.is_nan(train_loss_results[-1]):
-        break
-      if best_loss > train_loss_results[-1]:
-        save_path = checkpoint_manager.save()
-        best_loss = train_loss_results[-1]
-      epoch_loss_avg = tf.keras.metrics.Mean()
+      best_loss = valid_loss_avg.result()
+      counter = 0
+
+    elif best_loss > valid_loss_avg.result():
+      save_path = checkpoint_manager.save()
+      best_loss = valid_loss_avg.result()
+      counter = 0
+
+    elif counter >=30:
+      break
+
 
   new_maf, _ = build_model(model)
   new_optimizer = tf.optimizers.Adam(learning_rate=lr)
@@ -146,6 +143,11 @@ def train(model, name, structure, save_dir):
   new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
                                        weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
+
+  checkpoint_manager = tf.train.CheckpointManager(new_checkpoint,
+                                                  f'{save_dir}/checkpoints/{name}',
+                                                  max_to_keep=20)
+  save_path = checkpoint_manager.save()
 
   plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
@@ -164,13 +166,17 @@ def train(model, name, structure, save_dir):
         i].name == 'batch_normalization':
         new_maf.bijector.bijectors[i].batchnorm.trainable = False
 
-  if not os.path.exists(f'{save_dir}/samples'):
-    os.makedirs(f'{save_dir}/samples')
+  test_loss_avg = tf.keras.metrics.Mean()
+  for x in test:
+    loss_value = eval(maf, x)
+    test_loss_avg.update_state(loss_value)
 
-  results = {'samples' : tf.convert_to_tensor(new_maf.sample(100)),
-             'neg_elbo': best_loss
+  results = {'samples' : tf.convert_to_tensor(new_maf.sample(1000)),
+             'loss_eval': test_loss_avg.result(),
+             'train_loss': train_loss_results,
+             'valid_loss': valid_loss_results
              }
-  with open(f'{save_dir}/samples/{name}.pickle', 'wb') as handle:
+  with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -181,15 +187,23 @@ main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-for model in models:
-  if model == 'maf':
-    name = 'maf'
-    train(model, name, structure='continuity', save_dir=f'{main_dir}')
-  elif model == 'rqs_maf':
-    name = 'rqs_maf'
-    for nbins in [8, 128]:
-      train(model, name, save_dir=f'{main_dir}')
-  else:
-    for structure in ['continuity', 'smoothness']: #, 'smoothness']:
-      name = f'{model}_{structure}'
-      train(model, model, structure, save_dir=f'{main_dir}')
+datasets = ['co2']
+n_runs = 5
+
+for run in range(n_runs):
+
+  for data in datasets:
+    if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
+      os.makedirs(f'{main_dir}/run_{run}/{data}')
+    for model in models:
+      if model == 'maf':
+        name = 'maf'
+        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'rqs_maf':
+        name = 'rqs_maf'
+        for nbins in [8, 128]:
+          train(model, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      else:
+        for structure in ['continuity', 'smoothness']: #, 'smoothness']:
+          name = f'{model}_{structure}'
+          train(model, model, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
