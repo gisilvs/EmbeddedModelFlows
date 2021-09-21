@@ -123,7 +123,8 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
     tf.nest.pack_sequence_as(
       event_shape, range(len(flat_event_shape))))
   reshape_bijector = tfb.JointMap(
-    tf.nest.map_structure(tfb.Reshape, flat_event_shape))
+    tf.nest.map_structure(tfb.Reshape, flat_event_shape,
+                          [x[tf.newaxis] for x in flat_event_size]))
 
   if event_space_bijector:
 
