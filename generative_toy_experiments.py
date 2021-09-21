@@ -1,4 +1,5 @@
 import os
+import shutil
 import pickle
 import functools
 import tensorflow as tf
@@ -17,8 +18,19 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e5)
+num_iterations = int(200)
 n_dims = 2
+
+def clear_folder(folder):
+  for filename in os.listdir(folder):
+    file_path = os.path.join(folder, filename)
+    try:
+      if os.path.isfile(file_path) or os.path.islink(file_path):
+        os.unlink(file_path)
+      elif os.path.isdir(file_path):
+        shutil.rmtree(file_path)
+    except Exception as e:
+      print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 @tf.function
 def sample(model, model_fixed, n_samples):
@@ -116,9 +128,9 @@ def train(model, n_components, name, save_dir):
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
-  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=num_iterations)
-  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
+  '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=num_iterations)'''
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(optimizer=optimizer,
                                    weights=maf.trainable_variables)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{name}/tf_ckpts',
@@ -130,8 +142,6 @@ def train(model, n_components, name, save_dir):
     x = next(iter(dataset))
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    if np.array(tf.math.is_nan(loss_value)).any():
-      a=0
     # print(loss_value)
     save_path = checkpoint_manager.save()
     epoch_loss_avg.update_state(loss_value)
@@ -154,6 +164,8 @@ def train(model, n_components, name, save_dir):
                                        weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
 
+  if os.path.isdir(f'{save_dir}/checkpoints/{name}'):
+    clear_folder(f'{save_dir}/checkpoints/{name}')
   checkpoint_manager = tf.train.CheckpointManager(new_checkpoint,
                                                   f'{save_dir}/checkpoints/{name}',
                                                   max_to_keep=20)
@@ -233,5 +245,5 @@ for run in range(n_runs):
           train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for n_components in [100]:
-          name = f'c{n_components}_{model}'
+          name = f'c{n_components}_{model}_{run}'
           train(model, n_components, name, save_dir=f'{main_dir}/run_{run}/{data}')
