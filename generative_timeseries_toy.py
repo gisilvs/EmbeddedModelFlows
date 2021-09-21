@@ -1,4 +1,5 @@
 import os
+import shutil
 import pickle
 import functools
 import tensorflow as tf
@@ -18,6 +19,17 @@ tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
 num_iterations = int(5e4)
+
+def clear_folder(folder):
+  for filename in os.listdir(folder):
+    file_path = os.path.join(folder, filename)
+    try:
+      if os.path.isfile(file_path) or os.path.islink(file_path):
+        os.unlink(file_path)
+      elif os.path.isdir(file_path):
+        shutil.rmtree(file_path)
+    except Exception as e:
+      print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 @tfd.JointDistributionCoroutine
 def lorenz_system():
@@ -39,10 +51,11 @@ def lorenz_system():
 
 def time_series_gen(batch_size):
   while True:
-    yield lorenz_system.sample(batch_size)
+    yield tf.reshape(tf.transpose(tf.convert_to_tensor(lorenz_system.sample(batch_size)),[1,0,2]), [batch_size, -1])
 
-def train(model, name, structure, datset_name, save_dir):
+def train(model, name, structure, dataset_name, save_dir):
 
+  @tf.function
   def optimizer_step(net, inputs):
     with tf.GradientTape() as tape:
       loss = -net.log_prob(inputs)
@@ -50,7 +63,7 @@ def train(model, name, structure, datset_name, save_dir):
     optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
 
-  if datset_name == 'lorenz':
+  if dataset_name == 'lorenz':
     time_step_dim = 3
     series_len = 30
 
@@ -106,15 +119,16 @@ def train(model, name, structure, datset_name, save_dir):
 
 
   dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100)),
-                                             output_types=tf.float32).prefetch(tf.data.AUTOTUNE)
+                                             output_types=tf.float32).map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
+
 
   lr = 1e-4
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
   optimizer = tf.optimizers.Adam(learning_rate=lr)
-  checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                   weights=maf.trainable_variables)
-  checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{model}/tf_ckpts',
+  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
+  ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
                                                   max_to_keep=20)
   train_loss_results = []
 
@@ -142,12 +156,11 @@ def train(model, name, structure, datset_name, save_dir):
       epoch_loss_avg = tf.keras.metrics.Mean()
 
   new_maf, _ = build_model(model)
-  new_optimizer = tf.optimizers.Adam(learning_rate=lr)
 
-  new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
-                                       weights=new_maf.trainable_variables)
-  new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
-
+  new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
+  new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
+  if os.path.isdir(f'{save_dir}/checkpoints/{name}'):
+    clear_folder(f'{save_dir}/checkpoints/{name}')
   checkpoint_manager = tf.train.CheckpointManager(new_checkpoint,
                                                   f'{save_dir}/checkpoints/{name}',
                                                   max_to_keep=20)
@@ -171,7 +184,7 @@ def train(model, name, structure, datset_name, save_dir):
         new_maf.bijector.bijectors[i].batchnorm.trainable = False
 
   eval_dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(1e6)),
-                                             output_types=tf.float32).prefetch(tf.data.AUTOTUNE)
+                                             output_types=tf.float32).map(prior_matching_bijector)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
@@ -209,4 +222,4 @@ for run in range(n_runs):
       else:
         for structure in ['continuity', 'smoothness']: #, 'smoothness']:
           name = f'{model}_{structure}'
-          train(model, model, structure, save_dir=f'{main_dir}/run_{run}/{data}')
+          train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
