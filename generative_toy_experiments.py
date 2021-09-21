@@ -143,7 +143,6 @@ def train(model, n_components, name, save_dir):
     # Optimize the model
     loss_value = optimizer_step(maf, x)
     # print(loss_value)
-    save_path = checkpoint_manager.save()
     epoch_loss_avg.update_state(loss_value)
     if it==0:
       best_loss = epoch_loss_avg.result()
