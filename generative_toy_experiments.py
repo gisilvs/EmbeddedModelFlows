@@ -131,9 +131,9 @@ def train(model, n_components, name, save_dir):
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
   optimizer = tf.optimizers.Adam(learning_rate=lr)
-  checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                   weights=maf.trainable_variables)
-  checkpoint_manager = tf.train.CheckpointManager(checkpoint, f'/tmp/{name}/tf_ckpts',
+  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
+  ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
                                                   max_to_keep=20)
   train_loss_results = []
   epoch_loss_avg = tf.keras.metrics.Mean()
@@ -158,11 +158,10 @@ def train(model, n_components, name, save_dir):
       epoch_loss_avg = tf.keras.metrics.Mean()
 
   new_maf, _ = build_model(model)
-  new_optimizer = tf.optimizers.Adam(learning_rate=lr)
 
-  new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
-                                       weights=new_maf.trainable_variables)
-  new_checkpoint.restore(tf.train.latest_checkpoint(f'/tmp/{name}/tf_ckpts'))
+  new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
+
+  new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
 
   if os.path.isdir(f'{save_dir}/checkpoints/{name}'):
     clear_folder(f'{save_dir}/checkpoints/{name}')
@@ -245,5 +244,5 @@ for run in range(n_runs):
           train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for n_components in [100]:
-          name = f'c{n_components}_{model}_{run}'
+          name = f'c{n_components}_{model}'
           train(model, n_components, name, save_dir=f'{main_dir}/run_{run}/{data}')
