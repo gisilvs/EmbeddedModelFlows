@@ -19,6 +19,7 @@ num_iterations = int(5e4)
 
 def train(model, name, structure, dataset_name, save_dir):
 
+  @tf.function
   def optimizer_step(net, inputs):
     with tf.GradientTape() as tape:
       loss = -net.log_prob(inputs)
@@ -26,6 +27,7 @@ def train(model, name, structure, dataset_name, save_dir):
     optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
 
+  @tf.function
   def eval(model, inputs):
     return -model.log_prob(inputs)
 
@@ -106,10 +108,9 @@ def train(model, name, structure, dataset_name, save_dir):
 
   counter = 0
   for it in range(num_iterations):
-
+    counter +=1
     train_loss_avg = tf.keras.metrics.Mean()
     for x in train:
-
       # Optimize the model
       loss_value = optimizer_step(maf, x)
       #print(loss_value)
@@ -123,6 +124,8 @@ def train(model, name, structure, dataset_name, save_dir):
       valid_loss_avg.update_state(loss_value)
 
     valid_loss_results.append(valid_loss_avg.result())
+    print(valid_loss_results[-1])
+    print(counter)
 
     if it == 0:
       best_loss = valid_loss_avg.result()
