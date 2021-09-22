@@ -72,8 +72,8 @@ def train(model, n_components, name, save_dir):
           loc_range = 4.
           scale = 1.
         else:
-          loc_range = 30.
-          scale = 3.
+          loc_range = 1.
+          scale = 1.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')

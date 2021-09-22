@@ -246,6 +246,7 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1, is_gated=Fal
 
   bijector = tfb.Chain([prior_matching_bijectors,
                         flow_bijector_post[0],
+                        tfb.Invert(tfb.Tanh()),
                         tfb.Chain([tfb.Invert(prior_matching_bijectors),
                         normalizing_program,
                         prior_matching_bijectors]),
