@@ -4,6 +4,7 @@ import pickle
 import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
+import surrogate_posteriors
 
 from toy_data import generate_2d_data
 import surrogate_posteriors
@@ -71,9 +72,9 @@ def time_series_gen(batch_size, dataset_name):
   elif dataset_name == 'brownian':
     while True:
       yield tf.math.exp(tf.reshape(tf.transpose(tf.convert_to_tensor(brownian_motion.sample(batch_size)),[1,0]), [batch_size, -1]))
-  elif dataset_name == 'orn-uhl':
+  elif dataset_name == 'ornstein':
     while True:
-      yield tf.math.exp(tf.reshape(tf.transpose(tf.convert_to_tensor(ornstein_uhlenbeck.sample(batch_size)),[1,0]), [batch_size, -1]))
+      yield tf.reshape(tf.transpose(tf.convert_to_tensor(ornstein_uhlenbeck.sample(batch_size)),[1,0]), [batch_size, -1])
 
 def train(model, name, structure, dataset_name, save_dir):
 
@@ -104,22 +105,22 @@ def train(model, name, structure, dataset_name, save_dir):
       @tfd.JointDistributionCoroutine
       def prior_structure():
         new = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
-                                    scale=tf.ones_like(initial_mean)),1))
+                                    scale=tf.ones_like(initial_mean), name='prior0'),1))
 
         for t in range(1, series_len):
           new = yield tfd.Independent(tfd.Normal(loc=new,
-                                 scale=scales), 1)
+                                 scale=scales,  name=f'prior{t}'), 1)
 
     elif structure == 'smoothness':
       @tfd.JointDistributionCoroutine
       def prior_structure():
         previous = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
-                                                    scale=tf.ones_like(initial_mean)), 1))
+                                                    scale=tf.ones_like(initial_mean), name='prior0'), 1))
         current = yield Root(tfd.Independent(tfd.Normal(loc=initial_mean,
-                                                    scale=tf.ones_like(initial_mean)), 1))
+                                                    scale=tf.ones_like(initial_mean), name='prior1'), 1))
         for t in range(2, series_len):
           new = yield tfd.Independent(tfd.Normal(loc=2 * current - previous,
-                                                 scale=scales), 1)
+                                                 scale=scales, name=f'prior{t}'), 1)
           previous = current
           current = new
 
@@ -131,8 +132,10 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
+                                                         'gated_normalizing_program',
                                                          'maf')
+    elif model_name == 'bottom':
+      maf = surrogate_posteriors.bottom_np_maf(prior_structure)
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
@@ -165,7 +168,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
-    #print(loss_value)
+    print(loss_value)
     epoch_loss_avg.update_state(loss_value)
 
     if it == 0:
@@ -179,7 +182,7 @@ def train(model, name, structure, dataset_name, save_dir):
       if best_loss > train_loss_results[-1]:
         save_path = checkpoint_manager.save()
         best_loss = train_loss_results[-1]
-      epoch_loss_avg = tf.keras.metrics.Mean()
+    epoch_loss_avg = tf.keras.metrics.Mean()
 
   new_maf, _ = build_model(model)
 
@@ -223,13 +226,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf'] # 'sandwich']
+models = ['np_maf', 'bottom', 'maf']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['orn-uhl','brownian','lorenz']
+datasets = ['brownian','ornstein','lorenz']
 n_runs = 5
 
 for run in range(n_runs):
@@ -240,12 +243,11 @@ for run in range(n_runs):
     for model in models:
       if model == 'maf':
         name = 'maf'
-        train(model, name, structure='continuity', save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'rqs_maf':
-        name = 'rqs_maf'
-        for nbins in [8, 128]:
-          train(model, name, save_dir=f'{main_dir}/run_{run}/{data}')
+        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'bottom':
+        name = 'bottom'
+        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['continuity', 'smoothness']: #, 'smoothness']:
+        for structure in ['continuity', 'smoothness']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
