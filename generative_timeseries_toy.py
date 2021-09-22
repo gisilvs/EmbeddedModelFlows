@@ -199,18 +199,6 @@ def train(model, name, structure, dataset_name, save_dir):
               format="png")
   plt.close()
 
-  if model == 'np_maf':
-    for i in range(len(new_maf.distribution.bijector.bijectors)):
-      if 'batch_normalization' in new_maf.distribution.bijector.bijectors[
-        i].name:
-        new_maf.distribution.bijector.bijectors[
-          i].batchnorm.trainable = False
-  else:
-    for i in range(len(new_maf.bijector.bijectors)):
-      if 'batch_normalization' in new_maf.bijector.bijectors[
-        i].name == 'batch_normalization':
-        new_maf.bijector.bijectors[i].batchnorm.trainable = False
-
   eval_dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(1e6), dataset_name=dataset_name),
                                              output_types=tf.float32).map(prior_matching_bijector)
 
