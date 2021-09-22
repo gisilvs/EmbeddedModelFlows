@@ -24,11 +24,19 @@ learning_rates = {'mean_field': 1e-3,
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
                            ground_truth, observations, learning_rate, i, seed):
 
+  repo_name = f'results_0/{model_name}/{surrogate_posterior_name}'
+
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
                                           optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
                                           num_steps=100000,
                                           sample_size=50)
+
+  checkpoint = tf.train.Checkpoint(weights=surrogate_posterior.trainable_variables)
+  ckpt_dir = f'{repo_name}/checkpoints_{i}'
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
+                                                  max_to_keep=20)
+  save_path = checkpoint_manager.save()
 
   samples = surrogate_posterior.sample(150)
 
@@ -55,7 +63,7 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   if backbone_name:
     surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
 
-  repo_name = f'results_0/{model_name}/{surrogate_posterior_name}'
+
   if not os.path.exists(repo_name):
     os.makedirs(repo_name)
 
@@ -72,24 +80,24 @@ model_names = [#'eight_schools',
                #'radon',
                #'brownian_smoothing_r',
                #'brownian_smoothing_c',
-               'brownian_bridge_r',
+               #'brownian_bridge_r',
                #'brownian_bridge_c',
-               #'lorenz_smoothing_r',
+               'lorenz_smoothing_r',
                #'lorenz_smoothing_c',
-               'lorenz_bridge_r',
+               #'lorenz_bridge_r',
                #'lorenz_bridge_c',
-               'linear_binary_tree_4',
+               #'linear_binary_tree_4',
                #'linear_binary_tree_8',
                #'tanh_binary_tree_4',
-               'tanh_binary_tree_8',
+               #'tanh_binary_tree_8',
                ]
 
 surrogate_posterior_names = [#'mean_field',
                              #'multivariate_normal',
                              #'asvi',
                              #'iaf',
-                             'normalizing_program',
-                             #'gated_normalizing_program'
+                             #'normalizing_program',
+                             'gated_normalizing_program'
 ]
 
 backbone_names = [#'mean_field',
