@@ -19,7 +19,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1000)
+num_iterations = int(5e4)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -90,7 +90,7 @@ def train(model, name, structure, dataset_name, save_dir):
     time_step_dim = 3
     series_len = 30
 
-  elif dataset_name == 'brownian' or dataset_name == 'orn-uhl':
+  elif dataset_name == 'brownian' or dataset_name == 'ornstein':
     time_step_dim = 1
     series_len = 30
 
