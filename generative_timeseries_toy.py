@@ -49,9 +49,31 @@ def lorenz_system():
                  tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
       reinterpreted_batch_ndims=1)
 
-def time_series_gen(batch_size):
-  while True:
-    yield tf.reshape(tf.transpose(tf.convert_to_tensor(lorenz_system.sample(batch_size)),[1,0,2]), [batch_size, -1])
+@tfd.JointDistributionCoroutine
+def brownian_motion():
+  new = yield Root(tfd.Normal(loc=0, scale=.1))
+
+  for t in range(1, 30):
+    new = yield tfd.Normal(loc=new, scale=.1)
+
+@tfd.JointDistributionCoroutine
+def ornstein_uhlenbeck():
+  a = 0.5
+  new = yield Root(tfd.Normal(loc=0, scale=1.))
+
+  for t in range(1, 30):
+    new = yield tfd.Normal(loc=a*new, scale=1.)
+
+def time_series_gen(batch_size, dataset_name):
+  if dataset_name == 'lorenz':
+    while True:
+      yield tf.reshape(tf.transpose(tf.convert_to_tensor(lorenz_system.sample(batch_size)),[1,0,2]), [batch_size, -1])
+  elif dataset_name == 'brownian':
+    while True:
+      yield tf.math.exp(tf.reshape(tf.transpose(tf.convert_to_tensor(brownian_motion.sample(batch_size)),[1,0]), [batch_size, -1]))
+  elif dataset_name == 'orn-uhl':
+    while True:
+      yield tf.math.exp(tf.reshape(tf.transpose(tf.convert_to_tensor(ornstein_uhlenbeck.sample(batch_size)),[1,0]), [batch_size, -1]))
 
 def train(model, name, structure, dataset_name, save_dir):
 
@@ -65,6 +87,10 @@ def train(model, name, structure, dataset_name, save_dir):
 
   if dataset_name == 'lorenz':
     time_step_dim = 3
+    series_len = 30
+
+  elif dataset_name == 'brownian' or dataset_name == 'orn-uhl':
+    time_step_dim = 1
     series_len = 30
 
   def build_model(model_name):
@@ -118,7 +144,7 @@ def train(model, name, structure, dataset_name, save_dir):
   maf, prior_matching_bijector = build_model(model)
 
 
-  dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100)),
+  dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100), dataset_name=dataset_name),
                                              output_types=tf.float32).map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
 
 
@@ -203,7 +229,7 @@ main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['lorenz']
+datasets = ['orn-uhl','brownian','lorenz']
 n_runs = 5
 
 for run in range(n_runs):
