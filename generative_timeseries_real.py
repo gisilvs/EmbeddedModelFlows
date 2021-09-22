@@ -93,7 +93,7 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
+                                                         'gated_normalizing_program',
                                                          'maf')
     elif model_name == 'bottom':
       maf = surrogate_posteriors.bottom_np_maf(prior_structure)
@@ -197,7 +197,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf'] # 'sandwich']
+models = ['np_maf', 'maf', 'bottom'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
