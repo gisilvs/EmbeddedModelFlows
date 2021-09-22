@@ -211,7 +211,7 @@ def train(model, name, structure, dataset_name, save_dir):
         i].name == 'batch_normalization':
         new_maf.bijector.bijectors[i].batchnorm.trainable = False
 
-  eval_dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(1e6)),
+  eval_dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(1e6), dataset_name=dataset_name),
                                              output_types=tf.float32).map(prior_matching_bijector)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
