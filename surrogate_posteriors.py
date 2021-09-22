@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, build_rqs_maf
-from gate_bijector import GateBijector
+from gate_bijector import GateBijector, GateBijectorForNormal
 from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 from tensorflow_probability.python.internal import prefer_static as ps
 
@@ -49,9 +49,9 @@ gated_stdnormal_bijector_fns = {
   tfd.Gamma: lambda d: tfd.ApproxGammaFromNormal(d.concentration,
                                                  d._rate_parameter()),
   # using specific bijector for normal, use next line for generic one
-  # tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
-  tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)),
-                                     get_residual_fraction(d)),
+  tfd.Normal: lambda d: GateBijectorForNormal(d.loc, d.scale, get_residual_fraction(d)),
+  # tfd.Normal: lambda d: GateBijector(tfb.Shift(d.loc)(tfb.Scale(d.scale)),
+                                     # get_residual_fraction(d)),
   tfd.HalfNormal: lambda d: GateBijector(tfb.Softplus()(tfb.Scale(d.scale)),
                                          get_residual_fraction(d)),
   tfd.MultivariateNormalDiag: lambda d: GateBijector(
@@ -222,7 +222,7 @@ def _normalizing_program(prior, backbone_name, flow_params):
     bijector=bijector
   )
 
-def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
+def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1, is_gated=False):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
@@ -238,7 +238,10 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   flow_bijector_pre = build_iaf_bijector(**flow_params)
   flow_bijector_post = build_iaf_bijector(**flow_params)
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
-  normalizing_program = AutoFromNormal(prior)
+  if is_gated:
+    normalizing_program = GatedAutoFromNormal(prior)
+  else:
+    normalizing_program = AutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
   bijector = tfb.Chain([prior_matching_bijectors,
@@ -256,6 +259,39 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
 
   return backbone_surrogate_posterior
 
+def bottom_np_maf(prior):
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
+
+  base_distribution = tfd.Sample(
+    tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
+
+  flow_params = {'activation_fn': tf.nn.relu}
+  flow_params['dtype'] = dtype
+  flow_params['ndims'] = ndims
+  flow_params['num_flow_layers'] = 1
+  flow_params['num_hidden_units'] = 512
+  flow_params['is_iaf'] = False
+  flow_bijector_pre = build_iaf_bijector(**flow_params)
+  flow_bijector_post = build_iaf_bijector(**flow_params)
+  normalizing_program = AutoFromNormal(prior)
+  prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
+
+  bijector = tfb.Chain([
+    prior_matching_bijectors,
+    flow_bijector_post[0],
+    flow_bijector_pre[0],
+    tfb.Chain([tfb.Invert(prior_matching_bijectors),
+               normalizing_program,
+               prior_matching_bijectors])
+  ])
+
+  backbone_surrogate_posterior = tfd.TransformedDistribution(
+    distribution=base_distribution,
+    bijector=bijector
+  )
+
+  return backbone_surrogate_posterior
 
 def _gated_normalizing_program(prior, backbone_name, flow_params):
   '''for d in prior._get_single_sample_distributions():
@@ -335,6 +371,8 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "gated_normalizing_program":
     if backnone_name == 'iaf':
+      flow_params = {'activation_fn': tf.nn.relu}
+    elif backnone_name == 'maf':
       flow_params = {'activation_fn': tf.nn.relu}
     else:
       flow_params = {}
