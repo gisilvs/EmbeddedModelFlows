@@ -121,8 +121,7 @@ def train(model, name, structure, dataset_name, save_dir):
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
   optimizer = tf.optimizers.Adam(learning_rate=lr)
-  checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                   weights=maf.trainable_variables)
+  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
                                                   max_to_keep=20)
@@ -148,8 +147,6 @@ def train(model, name, structure, dataset_name, save_dir):
       valid_loss_avg.update_state(loss_value)
 
     valid_loss_results.append(valid_loss_avg.result())
-    print(valid_loss_results[-1])
-    print(counter)
 
     if it == 0:
       best_loss = valid_loss_avg.result()
@@ -165,10 +162,8 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   new_maf, _ = build_model(model)
-  new_optimizer = tf.optimizers.Adam(learning_rate=lr)
 
-  new_checkpoint = tf.train.Checkpoint(optimizer=new_optimizer,
-                                       weights=new_maf.trainable_variables)
+  new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
   if os.path.isdir(f'{save_dir}/checkpoints/{name}'):
     clear_folder(f'{save_dir}/checkpoints/{name}')
@@ -178,6 +173,7 @@ def train(model, name, structure, dataset_name, save_dir):
   save_path = checkpoint_manager.save()
 
   plt.plot(train_loss_results)
+  plt.plot(valid_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.close()
@@ -222,4 +218,4 @@ for run in range(n_runs):
       else:
         for structure in ['continuity', 'smoothness']: #, 'smoothness']:
           name = f'{model}_{structure}'
-          train(model, model, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+          train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
