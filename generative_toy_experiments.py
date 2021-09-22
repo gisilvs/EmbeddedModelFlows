@@ -72,7 +72,7 @@ def train(model, n_components, name, save_dir):
           loc_range = 4.
           scale = 1.
         else:
-          loc_range = 10.
+          loc_range = 30.
           scale = 3.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
@@ -146,6 +146,8 @@ def train(model, n_components, name, save_dir):
     loss_value = optimizer_step(maf, x)
     # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
+    '''if tf.math.is_nan(epoch_loss_avg.result()):
+      a = 0'''
     if it==0:
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
