@@ -225,7 +225,7 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["2spirals", 'checkerboard', "diamond"]
+datasets = ["2spirals","diamond", 'checkerboard']
 models = ['sandwich']
 
 main_dir = '2d_toy_results'
