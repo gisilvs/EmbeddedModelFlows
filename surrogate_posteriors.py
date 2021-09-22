@@ -221,7 +221,7 @@ def _normalizing_program(prior, backbone_name, flow_params):
     bijector=bijector
   )
 
-def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1, is_gated=False):
+def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
@@ -237,10 +237,7 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1, is_gated=Fal
   flow_bijector_pre = build_iaf_bijector(**flow_params)
   flow_bijector_post = build_iaf_bijector(**flow_params)
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
-  if is_gated:
-    normalizing_program = GatedAutoFromNormal(prior)
-  else:
-    normalizing_program = AutoFromNormal(prior)
+  normalizing_program = GatedAutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
   bijector = tfb.Chain([prior_matching_bijectors,
