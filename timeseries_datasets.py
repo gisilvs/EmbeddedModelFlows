@@ -28,11 +28,11 @@ def load_mauna_loa_atmospheric_co2():
   months = np.asarray(months).reshape(-1, 1)
   avg_ppmvs = np.asarray(ppmv_sums) / counts
 
-  avg_ppmvs_by_year = np.array([avg_ppmvs[i-12:i] for i in list(range(12,522))])
+  avg_ppmvs_by_year = np.array([avg_ppmvs[i-24:i] for i in list(range(24,522))])
   means = np.mean(avg_ppmvs_by_year, axis=1).reshape(-1,1)
   stds = np.std(avg_ppmvs_by_year, axis=1).reshape(-1,1)
   normalized_avg_ppmvs_by_year = (avg_ppmvs_by_year-means)/stds
   train = tf.convert_to_tensor(normalized_avg_ppmvs_by_year[:400])
-  valid = tf.convert_to_tensor(normalized_avg_ppmvs_by_year[400:450])
-  test = tf.convert_to_tensor(normalized_avg_ppmvs_by_year[450:])
+  valid = tf.convert_to_tensor(normalized_avg_ppmvs_by_year[400:448])
+  test = tf.convert_to_tensor(normalized_avg_ppmvs_by_year[448:])
   return tf.cast(train, tf.float32), tf.cast(valid, tf.float32), tf.cast(test, tf.float32)
