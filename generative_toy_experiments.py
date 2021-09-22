@@ -104,12 +104,12 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
-    elif model_name == 'rqs_maf':
+    elif model_name == 'rqs':
       flow_params = {
       'num_flow_layers': 2,
-      'nbins': nbins
+      'nbins': 128
     }
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, surrogate_posterior_name='rqs_maf', flow_params=flow_params)
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, surrogate_posterior_name='rqs', flow_params=flow_params)
       maf.sample(1)
     maf.log_prob(prior_structure.sample(1))
 
@@ -225,8 +225,8 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ["2spirals","diamond", 'checkerboard', '8gaussians']
-models = ['sandwich']
+datasets = ['checkerboard', '8gaussians']
+models = ['rqs', 'sandwich', 'np_maf', 'maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
@@ -241,10 +241,9 @@ for run in range(n_runs):
       if model == 'maf':
         name = 'maf'
         train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'rqs_maf':
-        name = 'rqs_maf'
-        for nbins in [8, 128]:
-          train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'rqs':
+        name = 'rqs'
+        train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for n_components in [100]:
           name = f'c{n_components}_{model}'

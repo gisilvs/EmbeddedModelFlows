@@ -43,18 +43,12 @@ class SplineParams(tf.Module):
       knot_slopes=self._knot_slopes(x))
 
 
-def build_rqs_maf(nbins, ndims, num_flow_layers):
-  splines = [SplineParams(nbins) for _ in range(num_flow_layers)]
-  make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
-  rqs_maf_bijector = [tfb.MaskedAutoregressiveFlow(
-    bijector_fn=lambda x: splines[0](x, ndims))]
-  rqs_maf_bijector.append(tfb.Invert(tfb.BatchNormalization()))
-  for i in range(num_flow_layers - 1):
-    rqs_maf_bijector.extend([make_swap(), tfb.MaskedAutoregressiveFlow(
-      bijector_fn=lambda x: splines[i](x, ndims))])
-    rqs_maf_bijector.append(tfb.Invert(tfb.BatchNormalization()))
-
-  return rqs_maf_bijector
+def build_rqs(nbins, num_flow_layers):
+  splines = [SplineParams(nbins=nbins) for _ in range(num_flow_layers)]
+  stack = tfb.Identity()
+  for i in range(2):
+    stack = tfb.RealNVP(i, bijector_fn=splines[i])(stack)
+  return [stack]
 
 
 def build_iaf_bijector(num_hidden_units,

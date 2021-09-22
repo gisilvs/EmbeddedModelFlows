@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, build_rqs_maf
+from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, build_rqs
 from gate_bijector import GateBijector, GateBijectorForNormal
 from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 from tensorflow_probability.python.internal import prefer_static as ps
@@ -200,9 +200,8 @@ def _normalizing_flows(prior, flow_name, flow_params):
     # flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_real_nvp_bijector(**flow_params)
-  if flow_name == 'rqs_maf':
-    flow_params['ndims'] = ndims
-    flow_bijector = build_rqs_maf(**flow_params)
+  if flow_name == 'rqs':
+    flow_bijector = build_rqs(**flow_params)
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
@@ -246,7 +245,6 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1, is_gated=Fal
 
   bijector = tfb.Chain([prior_matching_bijectors,
                         flow_bijector_post[0],
-                        tfb.Invert(tfb.Tanh()),
                         tfb.Chain([tfb.Invert(prior_matching_bijectors),
                         normalizing_program,
                         prior_matching_bijectors]),
@@ -356,8 +354,8 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _normalizing_flows(prior, flow_name='real_nvp',
                               flow_params=flow_params)
 
-  elif surrogate_posterior_name == "rqs_maf":
-    return _normalizing_flows(prior, flow_name='rqs_maf',
+  elif surrogate_posterior_name == "rqs":
+    return _normalizing_flows(prior, flow_name='rqs',
                               flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
