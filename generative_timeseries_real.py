@@ -211,10 +211,10 @@ for run in range(n_runs):
       if model == 'maf':
         name = 'maf'
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'rqs_maf':
-        name = 'rqs_maf'
-        for nbins in [8, 128]:
-          train(model, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'bottom':
+        name = 'bottom'
+        train(model, name, structure='continuity', dataset_name=data,
+              save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for structure in ['continuity', 'smoothness']: #, 'smoothness']:
           name = f'{model}_{structure}'
