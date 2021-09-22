@@ -70,8 +70,10 @@ def train(model, n_components, name, save_dir):
       else:
         if model_name == 'np_maf':
           loc_range = 4.
+          scale = 1.
         else:
-          loc_range = 4.
+          loc_range = 10.
+          scale = 3.
         component_logits = tf.Variable(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
@@ -79,7 +81,7 @@ def train(model, n_components, name, save_dir):
           [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
-          [[1. for _ in range(n_components)] for _ in
+          [[scale for _ in range(n_components)] for _ in
            range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
