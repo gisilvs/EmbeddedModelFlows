@@ -174,7 +174,7 @@ def train(model, name, structure, dataset_name, save_dir):
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
-      train_loss_results.append(epoch_loss_avg. vbvn())
+      train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
       if tf.math.is_nan(train_loss_results[-1]):
         break
