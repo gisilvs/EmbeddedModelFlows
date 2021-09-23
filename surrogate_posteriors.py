@@ -238,7 +238,7 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   flow_bijector_pre = build_iaf_bijector(**flow_params)
   flow_bijector_post = build_iaf_bijector(**flow_params)
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
-  normalizing_program = GatedAutoFromNormal(prior)
+  normalizing_program = AutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
   bijector = tfb.Chain([prior_matching_bijectors,

@@ -98,7 +98,7 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'gated_normalizing_program',
+                                                         'normalizing_program',
                                                          'maf')
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
