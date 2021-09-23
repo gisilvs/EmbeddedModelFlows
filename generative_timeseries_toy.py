@@ -59,11 +59,11 @@ def brownian_motion():
 
 @tfd.JointDistributionCoroutine
 def ornstein_uhlenbeck():
-  a = 0.5
-  new = yield Root(tfd.Normal(loc=0, scale=1.))
+  a = 0.8
+  new = yield Root(tfd.Normal(loc=0, scale=5.))
 
   for t in range(1, 30):
-    new = yield tfd.Normal(loc=a*new, scale=1.)
+    new = yield tfd.Normal(loc=a*new, scale=.5)
 
 def time_series_gen(batch_size, dataset_name):
   if dataset_name == 'lorenz':
@@ -219,7 +219,7 @@ main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['brownian','ornstein','lorenz']
+datasets = ['ornstein','ornstein','lorenz']
 n_runs = 5
 
 for run in range(n_runs):
