@@ -139,7 +139,7 @@ def train(model, n_components, name, save_dir):
                                                   max_to_keep=20)
   train_loss_results = []
   epoch_loss_avg = tf.keras.metrics.Mean()
-  for it in range(int(2e5)):
+  for it in range(num_iterations):
 
     x = next(iter(dataset))
     # Optimize the model
