@@ -64,6 +64,7 @@ gated_stdnormal_bijector_fns = {
     tfb.Scale(d.high - d.low)(tfb.NormalCDF())), get_residual_fraction(d)),
   tfd.Sample: lambda d: _gated_bijector_from_stdnormal_sample(d.distribution),
   tfd.Independent: lambda d: _gated_bijector_from_stdnormal(d.distribution)
+  tfd.MixtureSameFamily: lambda d: GateBijector(tfb.Chain([InverseMixtureOfGaussians(d), tfb.NormalCDF()]), get_residual_fraction(d))
 }
 
 stdnormal_bijector_sample_fns = {
