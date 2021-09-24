@@ -256,18 +256,19 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
 
   return backbone_surrogate_posterior
 
-def bottom_np_maf(prior):
+def bottom_np_maf(prior, flow_params={}):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
   base_distribution = tfd.Sample(
     tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
 
-  flow_params = {'activation_fn': tf.nn.relu}
+  flow_params['activation_fn'] = tf.nn.relu
   flow_params['dtype'] = dtype
   flow_params['ndims'] = ndims
   flow_params['num_flow_layers'] = 1
-  flow_params['num_hidden_units'] = 512
+  if 'num_hidden_units' not in flow_params:
+    flow_params['num_hidden_units'] = 512
   flow_params['is_iaf'] = False
   flow_bijector_pre = build_iaf_bijector(**flow_params)
   flow_bijector_post = build_iaf_bijector(**flow_params)
@@ -337,8 +338,10 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _normalizing_flows(prior, flow_name='iaf', flow_params=flow_params)
 
   elif surrogate_posterior_name == "maf":
-    flow_params['num_flow_layers'] = 2
-    flow_params['num_hidden_units'] = 512
+    if 'num_flow_layers' not in flow_params:
+      flow_params['num_flow_layers'] = 2
+    if 'num_hidden_units' not in flow_params:
+      flow_params['num_hidden_units'] = 512
     flow_params['is_iaf'] = False
     if 'activation_fn' not in flow_params:
       flow_params['activation_fn'] = tf.math.tanh
@@ -358,20 +361,16 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
 
   elif surrogate_posterior_name == "normalizing_program":
     if backnone_name == 'iaf':
-      flow_params = {'activation_fn': tf.nn.relu}
+      flow_params['activation_fn'] = tf.nn.relu
     elif backnone_name == 'maf':
-      flow_params = {'activation_fn': tf.nn.relu}
-    else:
-      flow_params = {}
+      flow_params['activation_fn'] = tf.nn.relu
     return _normalizing_program(prior, backbone_name=backnone_name,
                                 flow_params=flow_params)
 
   elif surrogate_posterior_name == "gated_normalizing_program":
     if backnone_name == 'iaf':
-      flow_params = {'activation_fn': tf.nn.relu}
+      flow_params['activation_fn'] = tf.nn.relu
     elif backnone_name == 'maf':
-      flow_params = {'activation_fn': tf.nn.relu}
-    else:
-      flow_params = {}
+      flow_params['activation_fn'] = tf.nn.relu
     return _gated_normalizing_program(prior, backbone_name=backnone_name,
                                       flow_params=flow_params)
