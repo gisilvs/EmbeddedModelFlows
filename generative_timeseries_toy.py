@@ -162,9 +162,8 @@ def train(model, name, structure, dataset_name, save_dir):
   train_loss_results = []
 
   epoch_loss_avg = tf.keras.metrics.Mean()
-  for it in range(num_iterations):
-
-    x = next(iter(dataset))
+  it = 0
+  for x in dataset:
 
     # Optimize the model
     loss_value = optimizer_step(maf, x)
@@ -177,6 +176,9 @@ def train(model, name, structure, dataset_name, save_dir):
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
       epoch_loss_avg = tf.keras.metrics.Mean()
+    if it >= num_iterations:
+      break
+    it += 1
 
   save_path = checkpoint_manager.save()
   new_maf, _ = build_model(model)
