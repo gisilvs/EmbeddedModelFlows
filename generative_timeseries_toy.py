@@ -176,13 +176,9 @@ def train(model, name, structure, dataset_name, save_dir):
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
-      if tf.math.is_nan(train_loss_results[-1]):
-        break
-      if best_loss > train_loss_results[-1]:
-        save_path = checkpoint_manager.save()
-        best_loss = train_loss_results[-1]
-    epoch_loss_avg = tf.keras.metrics.Mean()
+      epoch_loss_avg = tf.keras.metrics.Mean()
 
+  save_path = checkpoint_manager.save()
   new_maf, _ = build_model(model)
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
