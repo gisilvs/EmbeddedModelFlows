@@ -153,6 +153,9 @@ def train(model, n_components, name, save_dir):
       epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
+      if tf.math.is_nan(train_loss_results[-1]):
+        break
+      save_path = checkpoint_manager.save()
       epoch_loss_avg = tf.keras.metrics.Mean()
     if it >= num_iterations:
       break
