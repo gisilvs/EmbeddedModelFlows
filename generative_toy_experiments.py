@@ -228,15 +228,15 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ['8gaussians', 'checkerboard']
-models = ['sandwich', 'np_maf', 'maf']
+datasets = ['8gaussians'] #, 'checkerboard']
+models = ['sandwich']#, 'np_maf', 'maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = 5
+n_runs = [2,3]
 
-for run in range(n_runs):
+for run in n_runs:
   for data in datasets:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
