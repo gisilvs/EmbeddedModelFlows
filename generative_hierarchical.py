@@ -100,8 +100,8 @@ def train(model, name, save_dir):
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=lr_decayed_fn)
-  optimizer = tf.optimizers.Adam(learning_rate=lr)
+    initial_learning_rate=lr, decay_steps=5e5)
+  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
   checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
