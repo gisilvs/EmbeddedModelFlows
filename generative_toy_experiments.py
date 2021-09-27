@@ -98,7 +98,7 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
+                                                         'gated_normalizing_program',
                                                          'maf')
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
@@ -228,15 +228,15 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ['8gaussians'] #, 'checkerboard']
-models = ['sandwich']#, 'np_maf', 'maf']
+datasets = ['8gaussians', 'checkerboard']
+models = ['np_maf', 'sandwich']#, 'np_maf', 'maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [2]
+n_runs = 5
 
-for run in n_runs:
+for run in range(n_runs):
   for data in datasets:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
