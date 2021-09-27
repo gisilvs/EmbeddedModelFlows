@@ -142,10 +142,10 @@ def train(model, name, structure, dataset_name, save_dir):
     valid = tf.reshape(valid, [tf.shape(valid)[0], -1])
     test = tf.reshape(test, [tf.shape(test)[0], -1])
 
-  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(int(1e3))
-  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).cache().shuffle(int(1e3)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).cache().batch(batch_size).prefetch(tf.data.AUTOTUNE)
   test = tf.data.Dataset.from_tensor_slices(test).map(
-    prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    prior_matching_bijector).cache().batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
