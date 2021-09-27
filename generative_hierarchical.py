@@ -87,6 +87,9 @@ def train(model, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
                                                          'maf')
+    elif model_name == 'sandwich':
+      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
+        prior_structure)
 
     maf.log_prob(prior_structure.sample(1))
 
@@ -158,7 +161,7 @@ def train(model, name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf']
+models = ['sandwich']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
