@@ -234,7 +234,7 @@ models = ['sandwich']#, 'np_maf', 'maf']
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [2,3]
+n_runs = [2]
 
 for run in n_runs:
   for data in datasets:
