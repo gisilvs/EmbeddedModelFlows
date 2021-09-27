@@ -178,5 +178,5 @@ for run in range(n_runs):
       name = 'maf'
       train(model, name, save_dir=f'{main_dir}/run_{run}')
     else:
-      name = 'np_maf'
+      name = model
       train(model, name, save_dir=f'{main_dir}/run_{run}')
