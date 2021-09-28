@@ -92,9 +92,15 @@ def train(model, name, structure, dataset_name, save_dir):
           current = new
 
     elif structure == 'stock':
-      mul = tfp.util.TransformedVariable(1., tfb.Softplus())
-      theta = tfp.util.TransformedVariable(1., tfb.Softplus())
-      scale = tfp.util.TransformedVariable(1., tfb.Softplus())
+      if model == 'maf':
+        mul = 1.
+        theta = 1.
+        scale = 1.
+      else:
+
+        mul = tfp.util.TransformedVariable(1., tfb.Softplus())
+        theta = tfp.util.TransformedVariable(1., tfb.Softplus())
+        scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
       @tfd.JointDistributionCoroutine
@@ -147,9 +153,9 @@ def train(model, name, structure, dataset_name, save_dir):
   test = tf.data.Dataset.from_tensor_slices(test).map(
     prior_matching_bijector).cache().batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
-  '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=num_iterations)'''
-  optimizer = tf.optimizers.Adam(learning_rate=lr)
+  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=1000)
+  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
   checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
@@ -169,6 +175,8 @@ def train(model, name, structure, dataset_name, save_dir):
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
+    if tf.math.is_nan(train_loss_results[-1]):
+      break
 
     valid_loss_avg = tf.keras.metrics.Mean()
     for x in valid:
@@ -216,7 +224,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf'] # 'sandwich']
+models = ['maf', 'maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
@@ -233,7 +241,7 @@ for run in range(n_runs):
     for model in models:
       if model == 'maf':
         name = 'maf'
-        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+        train(model, name, structure='stock', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       elif model == 'bottom':
         name = 'bottom'
         train(model, name, structure='continuity', dataset_name=data,
