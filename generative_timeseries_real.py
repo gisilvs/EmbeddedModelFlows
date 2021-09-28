@@ -98,8 +98,8 @@ def train(model, name, structure, dataset_name, save_dir):
         scale = 1.
       else:
 
-        mul = tfp.util.TransformedVariable(1., tfb.Softplus())
-        theta = tfp.util.TransformedVariable(1., tfb.Softplus())
+        mul = tfp.util.TransformedVariable(.1, tfb.Softplus())
+        theta = tfp.util.TransformedVariable(.1, tfb.Softplus())
         scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
