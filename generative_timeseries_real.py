@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import surrogate_posteriors
 import timeseries_datasets
+import process_stock
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e4)
+num_iterations = int(1e3)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -47,11 +48,16 @@ def train(model, name, structure, dataset_name, save_dir):
     time_step_dim = 1
     series_len = 24
 
+  elif dataset_name == 'stock':
+    series_len = 40
+    time_step_dim = 1
+
   def build_model(model_name):
     if model=='maf':
       scales = tf.ones(time_step_dim)
     else:
-      scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
+      scales = tf.ones(time_step_dim)
+      #scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
     initial_mean = tf.zeros(time_step_dim)
 
     if structure == 'continuity':
@@ -85,18 +91,35 @@ def train(model, name, structure, dataset_name, save_dir):
           previous = current
           current = new
 
+    elif structure == 'stock':
+      mul = tfp.util.TransformedVariable(1., tfb.Softplus())
+      theta = tfp.util.TransformedVariable(1., tfb.Softplus())
+      scale = tfp.util.TransformedVariable(1., tfb.Softplus())
+
+
+      @tfd.JointDistributionCoroutine
+      def prior_structure():
+        x = yield Root(tfd.Normal(loc=0., scale=1., name='x_0'))
+        v = yield Root(tfd.Normal(loc=0., scale=1., name='v_0'))
+        for t in range(1, series_len):
+          x = yield tfd.Normal(loc=x, scale=tf.math.exp(v), name=f'x_{t}')
+          v = yield tfd.Normal(loc=mul*(v-theta), scale=scale, name=f'v_{t}')
+
+
     prior_matching_bijector = tfb.Chain(
       surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
         prior_structure)[-1])
 
+    flow_params = {'num_hidden_units': 512}
     if model_name == 'maf':
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
-                                                         'maf')
+                                                         'maf',
+                                                         flow_params=flow_params)
     elif model_name == 'bottom':
-      maf = surrogate_posteriors.bottom_np_maf(prior_structure)
+      maf = surrogate_posteriors.bottom_np_maf(prior_structure, flow_params)
 
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
@@ -112,11 +135,17 @@ def train(model, name, structure, dataset_name, save_dir):
   if dataset_name == 'co2':
     train, valid, test = timeseries_datasets.load_mauna_loa_atmospheric_co2()
     batch_size = 32
-  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(int(10e3))
-  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(int(10e3))
+  elif dataset_name == 'stock':
+    batch_size = 128
+    train, valid, test = process_stock.get_stock_data()
+    train = tf.reshape(train, [tf.shape(train)[0], -1])
+    valid = tf.reshape(valid, [tf.shape(valid)[0], -1])
+    test = tf.reshape(test, [tf.shape(test)[0], -1])
+
+  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).cache().shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).cache().batch(batch_size).prefetch(tf.data.AUTOTUNE)
   test = tf.data.Dataset.from_tensor_slices(test).map(
-    prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE).shuffle(
-    int(10e3))
+    prior_matching_bijector).cache().batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)'''
@@ -150,16 +179,10 @@ def train(model, name, structure, dataset_name, save_dir):
 
     if it == 0:
       best_loss = valid_loss_avg.result()
-      counter = 0
 
     elif best_loss > valid_loss_avg.result():
       save_path = checkpoint_manager.save()
       best_loss = valid_loss_avg.result()
-      counter = 0
-
-    elif counter >=30:
-      break
-
 
   new_maf, _ = build_model(model)
 
@@ -193,13 +216,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'maf', 'bottom'] # 'sandwich']
+models = ['np_maf', 'maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['co2']
+datasets = ['stock']
 n_runs = 5
 
 for run in range(n_runs):
@@ -216,6 +239,6 @@ for run in range(n_runs):
         train(model, name, structure='continuity', dataset_name=data,
               save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['continuity', 'smoothness']: #, 'smoothness']:
+        for structure in ['stock']: #, 'smoothness']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
