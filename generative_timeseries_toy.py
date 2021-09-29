@@ -174,13 +174,18 @@ def train(model, name, structure, dataset_name, save_dir):
       epoch_loss_avg = tf.keras.metrics.Mean()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
-      #print(train_loss_results[-1])
+      print(train_loss_results[-1])
       epoch_loss_avg = tf.keras.metrics.Mean()
+      if tf.math.is_nan(train_loss_results[-1]):
+        break
+      else:
+        save_path = checkpoint_manager.save()
+
     if it >= num_iterations:
       break
     it += 1
 
-  save_path = checkpoint_manager.save()
+
   new_maf, _ = build_model(model)
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
@@ -211,13 +216,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf', 'bottom', 'maf']
+models = ['maf']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['brownian','ornstein','lorenz']
+datasets = ['lorenz']
 n_runs = 5
 
 for run in range(n_runs):
