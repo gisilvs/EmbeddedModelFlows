@@ -152,7 +152,7 @@ def train(model, name, structure, dataset_name, save_dir):
   valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   test = tf.data.Dataset.from_tensor_slices(test).map(
     prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-  lr = 1e-4
+  lr = 1e-5
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=1000)'''
   optimizer = tf.optimizers.Adam(learning_rate=lr)
