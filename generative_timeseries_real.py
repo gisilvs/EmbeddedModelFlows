@@ -98,18 +98,18 @@ def train(model, name, structure, dataset_name, save_dir):
         mul = 1.
         scale = 1.
       else:
-        theta = tf.Variable(0.)
-        mul = tfp.util.TransformedVariable(.1, tfb.Sigmoid(low=0.01, high=0.99))
-        scale = tfp.util.TransformedVariable(.1, tfb.Softplus())
+        theta = tf.Variable(.1)
+        mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
+        scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
       @tfd.JointDistributionCoroutine
       def prior_structure():
-        x = yield Root(tfd.Normal(loc=0., scale=.1, name='x_0'))
-        v = yield Root(tfd.Normal(loc=0., scale=.1, name='v_0'))
+        x = yield Root(tfd.Normal(loc=0., scale=1., name='x_0'))
+        v = yield Root(tfd.Normal(loc=0., scale=1., name='v_0'))
         for t in range(1, series_len):
-          x = yield tfd.Normal(loc=x, scale=v+eps, name=f'x_{t}')
-          v = yield tfb.Exp()(tfd.Normal(loc=mul*(tf.math.log(v)-theta), scale=scale, name=f'v_{t}'))
+          x = yield tfd.Normal(loc=x, scale=tf.math.exp(v)+eps, name=f'x_{t}')
+          v = yield tfd.Normal(loc=mul*(v-theta), scale=scale, name=f'v_{t}')
 
 
     prior_matching_bijector = tfb.Chain(
@@ -144,9 +144,9 @@ def train(model, name, structure, dataset_name, save_dir):
   elif dataset_name == 'stock':
     batch_size = 128
     train, valid, test = process_stock.get_stock_data()
-    train = tf.reshape(train, [tf.shape(train)[0], -1])
-    valid = tf.reshape(valid, [tf.shape(valid)[0], -1])
-    test = tf.reshape(test, [tf.shape(test)[0], -1])
+    train = tf.math.log(tf.reshape(train, [tf.shape(train)[0], -1]))
+    valid = tf.math.log(tf.reshape(valid, [tf.shape(valid)[0], -1]))
+    test = tf.math.log(tf.reshape(test, [tf.shape(test)[0], -1]))
 
   train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -171,7 +171,7 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      print(loss_value)
+      # print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
