@@ -144,9 +144,9 @@ def train(model, name, structure, dataset_name, save_dir):
   elif dataset_name == 'stock':
     batch_size = 128
     train, valid, test = process_stock.get_stock_data()
-    train = tf.math.log(tf.reshape(train, [tf.shape(train)[0], -1]))
-    valid = tf.math.log(tf.reshape(valid, [tf.shape(valid)[0], -1]))
-    test = tf.math.log(tf.reshape(test, [tf.shape(test)[0], -1]))
+    train = tf.reshape(train, [tf.shape(train)[0], -1])
+    valid = tf.reshape(valid, [tf.shape(valid)[0], -1])
+    test = tf.reshape(test, [tf.shape(test)[0], -1])
 
   train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -171,10 +171,11 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      # print(loss_value)
+      print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
+    print(train_loss_results[-1])
     if tf.math.is_nan(train_loss_results[-1]):
       break
 
