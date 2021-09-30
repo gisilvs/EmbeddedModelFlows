@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e2)
+num_iterations = int(1e3)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -224,7 +224,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf', 'np_maf'] # 'sandwich']
+models = ['maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
