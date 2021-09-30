@@ -171,11 +171,11 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      print(loss_value)
+      #print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
-    print(train_loss_results[-1])
+    #print(train_loss_results[-1])
     if tf.math.is_nan(train_loss_results[-1]):
       break
 
