@@ -92,24 +92,24 @@ def train(model, name, structure, dataset_name, save_dir):
           current = new
 
     elif structure == 'stock':
+      eps = 1e-6
+      theta = -2.5316484
       if model == 'maf':
         mul = 1.
-        theta = 1.
         scale = 1.
       else:
-
-        mul = tfp.util.TransformedVariable(.1, tfb.Softplus())
-        theta = tfp.util.TransformedVariable(.1, tfb.Softplus())
-        scale = tfp.util.TransformedVariable(1., tfb.Softplus())
+        theta = tf.Variable(0.)
+        mul = tfp.util.TransformedVariable(.1, tfb.Sigmoid(low=0.01, high=0.99))
+        scale = tfp.util.TransformedVariable(.1, tfb.Softplus())
 
 
       @tfd.JointDistributionCoroutine
       def prior_structure():
-        x = yield Root(tfd.Normal(loc=0., scale=1., name='x_0'))
-        v = yield Root(tfd.Normal(loc=0., scale=1., name='v_0'))
+        x = yield Root(tfd.Normal(loc=0., scale=.1, name='x_0'))
+        v = yield Root(tfd.Normal(loc=0., scale=.1, name='v_0'))
         for t in range(1, series_len):
-          x = yield tfd.Normal(loc=x, scale=tf.math.exp(v), name=f'x_{t}')
-          v = yield tfd.Normal(loc=mul*(v-theta), scale=scale, name=f'v_{t}')
+          x = yield tfd.Normal(loc=x, scale=v+eps, name=f'x_{t}')
+          v = yield tfb.Exp()(tfd.Normal(loc=mul*(tf.math.log(v)-theta), scale=scale, name=f'v_{t}'))
 
 
     prior_matching_bijector = tfb.Chain(
@@ -171,7 +171,7 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      #print(loss_value)
+      print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
@@ -224,7 +224,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf'] # 'sandwich']
+models = ['np_maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
