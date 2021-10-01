@@ -1,11 +1,4 @@
-<<<<<<< HEAD
-model_checkpoint_path: "ckpt-1"
-all_model_checkpoint_paths: "ckpt-1"
-all_model_checkpoint_timestamps: 1633031410.076807
-last_preserved_timestamp: 1633031408.9927979
-=======
-model_checkpoint_path: "ckpt-34"
-all_model_checkpoint_paths: "ckpt-34"
-all_model_checkpoint_timestamps: 1633040658.4415705
-last_preserved_timestamp: 1633040657.4226625
->>>>>>> 9a6014ee869966108f7265285d61227722cc002c
+model_checkpoint_path: "ckpt-2"
+all_model_checkpoint_paths: "ckpt-2"
+all_model_checkpoint_timestamps: 1633102429.5085995
+last_preserved_timestamp: 1633102428.4895768
