@@ -225,13 +225,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf'] # 'sandwich']
+models = ['maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['maf']
+datasets = ['stock']
 n_runs = 5
 
 for run in range(n_runs):
