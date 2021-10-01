@@ -95,12 +95,14 @@ def train(model, name, structure, dataset_name, save_dir):
       eps = 1e-6
       theta = -2.5316484
       if model == 'maf':
-        mul = 1.
+        mul = .5
         scale = 1.
       else:
-        theta = tf.Variable(0.)
-        mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
-        scale = tfp.util.TransformedVariable(1., tfb.Softplus())
+        mul = .5
+        scale = 1.
+       # theta = tf.Variable(0.)
+       # mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
+       # scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
       @tfd.JointDistributionCoroutine
@@ -144,11 +146,11 @@ def train(model, name, structure, dataset_name, save_dir):
   elif dataset_name == 'stock':
     batch_size = 128
     train_data, valid_data, test_data = process_stock.get_stock_data()
-    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], -1]))
-    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], -1]))
-    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], -1]))
+    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], 1, -1]))
+    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], 1, -1]))
+    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], 1, -1]))
 
-  train = tf.data.Dataset.from_tensor_slices(train_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  train = tf.data.Dataset.from_tensor_slices(train_data).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   valid = tf.data.Dataset.from_tensor_slices(valid_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   test = tf.data.Dataset.from_tensor_slices(test_data).map(
     prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -171,7 +173,7 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      # print(loss_value)
+      print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
