@@ -141,14 +141,14 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   if dataset_name == 'co2':
-    train, valid, test = timeseries_datasets.load_mauna_loa_atmospheric_co2()
+    train_data, valid_data, test_data = timeseries_datasets.load_mauna_loa_atmospheric_co2()
     batch_size = 32
   elif dataset_name == 'stock':
     batch_size = 128
     train_data, valid_data, test_data = process_stock.get_stock_data()
-    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], 1, -1]))
-    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], 1, -1]))
-    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], 1, -1]))
+    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], -1]))
+    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], -1]))
+    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], -1]))
 
   train = tf.data.Dataset.from_tensor_slices(train_data).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   valid = tf.data.Dataset.from_tensor_slices(valid_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
