@@ -200,12 +200,12 @@ main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['digits']
+dataset = ['digits']
 
 n_runs = [0]
 
 for run in n_runs:
-  for data in datasets:
+  for data in dataset:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
