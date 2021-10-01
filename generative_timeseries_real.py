@@ -98,7 +98,7 @@ def train(model, name, structure, dataset_name, save_dir):
         mul = 1.
         scale = 1.
       else:
-        theta = tf.Variable(.1)
+        theta = tf.Variable(0.)
         mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
         scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
@@ -121,7 +121,7 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'gated_normalizing_program',
+                                                         'normalizing_program',
                                                          'maf',
                                                          flow_params=flow_params)
     elif model_name == 'bottom':
@@ -143,14 +143,14 @@ def train(model, name, structure, dataset_name, save_dir):
     batch_size = 32
   elif dataset_name == 'stock':
     batch_size = 128
-    train, valid, test = process_stock.get_stock_data()
-    train = tf.reshape(train, [tf.shape(train)[0], -1])
-    valid = tf.reshape(valid, [tf.shape(valid)[0], -1])
-    test = tf.reshape(test, [tf.shape(test)[0], -1])
+    train_data, valid_data, test_data = process_stock.get_stock_data()
+    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], -1]))
+    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], -1]))
+    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], -1]))
 
-  train = tf.data.Dataset.from_tensor_slices(train).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-  valid = tf.data.Dataset.from_tensor_slices(valid).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-  test = tf.data.Dataset.from_tensor_slices(test).map(
+  train = tf.data.Dataset.from_tensor_slices(train_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  valid = tf.data.Dataset.from_tensor_slices(valid_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+  test = tf.data.Dataset.from_tensor_slices(test_data).map(
     prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -171,11 +171,11 @@ def train(model, name, structure, dataset_name, save_dir):
     for x in train:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      #print(loss_value)
+      # print(loss_value)
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
-    #print(train_loss_results[-1])
+    print(train_loss_results[-1])
     if tf.math.is_nan(train_loss_results[-1]):
       break
 
@@ -225,7 +225,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf'] # 'sandwich']
+models = ['maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
