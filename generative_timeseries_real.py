@@ -98,11 +98,9 @@ def train(model, name, structure, dataset_name, save_dir):
         mul = .5
         scale = 1.
       else:
-        mul = .5
-        scale = 1.
-       # theta = tf.Variable(0.)
-       # mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
-       # scale = tfp.util.TransformedVariable(1., tfb.Softplus())
+       theta = tf.Variable(0.)
+       mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
+       scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
       @tfd.JointDistributionCoroutine
@@ -227,7 +225,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf'] # 'sandwich']
+models = ['np_maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):

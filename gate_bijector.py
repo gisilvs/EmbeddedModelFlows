@@ -30,8 +30,8 @@ class GateBijectorForNormal(tfb.Bijector):
     return y
 
   def _forward_log_det_jacobian(self, x):
-    fldj = tf.math.reduce_sum(tf.math.log(
-      self.residual_fraction * self.scale + (1 - self.residual_fraction)))
+    fldj = tf.math.log(
+      self.residual_fraction * (self.scale-1) + 1)
     return fldj
 
 
