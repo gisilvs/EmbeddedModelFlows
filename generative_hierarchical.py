@@ -161,7 +161,7 @@ def train(model, name, save_dir):
 
 
   print(f'{name} done!')
-models = ['sandwich']
+models = ['np_maf','sandwich']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
