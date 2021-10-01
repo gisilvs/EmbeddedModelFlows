@@ -33,6 +33,25 @@ def iris_generator():
     sample = tf.reshape(tf.convert_to_tensor(sample[:10], dtype=tf.float32), [-1])
     yield sample
 
+def digits_generator():
+  lambd = 1e-6
+  digits = datasets.load_digits()
+  data = tf.convert_to_tensor(digits.data, dtype=tf.float32)
+  data = (data + tf.random.uniform(tf.shape(data), minval=0., maxval=1., seed=42)) / 17.
+  data = tf.math.log(lambd + (1 - 2 * lambd) * data)
+  labels = digits.target
+  class_dict = {}
+  for label in range(10):
+    class_dict[label] = tf.gather(data, list(np.where(labels==label)[0]))
+  while True:
+    class_idx = np.random.randint(10)
+    class_dict[class_idx] = tf.random.shuffle(class_dict[class_idx])
+    sample = class_dict[class_idx][:20]
+    sample_mean = tf.reshape(tf.reduce_mean(sample, axis=0), [1,-1])
+    sample = tf.concat([sample_mean, sample], axis=0)
+    sample = tf.reshape(sample[:20], [-1])
+    yield sample
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 tfk = tf.keras
@@ -52,7 +71,7 @@ def clear_folder(folder):
     except Exception as e:
       print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-def train(model, name, save_dir):
+def train(model, name, dataset_name, save_dir):
 
   @tf.function
   def optimizer_step(net, inputs):
@@ -63,8 +82,14 @@ def train(model, name, save_dir):
     return loss
 
   def build_model(model_name):
-    scales = tf.ones(4)
-    initial_mean = tf.zeros(4)
+    if dataset_name == 'iris':
+      scales = tf.ones(4)
+      initial_mean = tf.zeros(4)
+      length = 10
+    elif dataset_name == 'digits':
+      scales = tf.ones(64)
+      initial_mean = tf.zeros(64)
+      length = 20
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
@@ -72,7 +97,7 @@ def train(model, name, save_dir):
                                                   scale=scales,
                                                   name='prior0'), 1))
 
-      for t in range(1, 10):
+      for t in range(1, length):
         new = yield tfd.Independent(tfd.Normal(loc=mean,
                                                scale=scales, name=f'prior{t}'),
                                     1)
@@ -98,8 +123,13 @@ def train(model, name, save_dir):
   maf, prior_matching_bijector = build_model(model)
 
 
-  dataset = tf.data.Dataset.from_generator(iris_generator,
-                                             output_types=tf.float32).map(prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
+  if dataset_name == 'iris':
+    dataset = tf.data.Dataset.from_generator(iris_generator,
+                                               output_types=tf.float32).map(prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
+  else:
+    dataset = tf.data.Dataset.from_generator(digits_generator,
+                                             output_types=tf.float32).map(
+      prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -126,11 +156,14 @@ def train(model, name, save_dir):
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
       epoch_loss_avg = tf.keras.metrics.Mean()
+      if tf.math.is_nan(train_loss_results[-1]):
+        break
+      else:
+        save_path = checkpoint_manager.save()
     if it >= num_iterations:
       break
     it += 1
 
-  save_path = checkpoint_manager.save()
   new_maf, _ = build_model(model)
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
@@ -161,22 +194,24 @@ def train(model, name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf','sandwich']
+models = ['maf','np_maf','sandwich']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-n_runs = 5
+datasets = ['digits']
 
-for run in range(n_runs):
+n_runs = [0]
 
-  if not os.path.exists(f'{main_dir}/run_{run}'):
-    os.makedirs(f'{main_dir}/run_{run}')
-  for model in models:
-    if model == 'maf':
-      name = 'maf'
-      train(model, name, save_dir=f'{main_dir}/run_{run}')
-    else:
-      name = model
-      train(model, name, save_dir=f'{main_dir}/run_{run}')
+for run in n_runs:
+  for data in datasets:
+    if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
+      os.makedirs(f'{main_dir}/run_{run}/{data}')
+    for model in models:
+      if model == 'maf':
+        name = 'maf'
+        train(model, name, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+      else:
+        name = model
+        train(model, name, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
