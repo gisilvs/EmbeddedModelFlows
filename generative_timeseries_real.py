@@ -105,8 +105,8 @@ def train(model, name, structure, dataset_name, save_dir):
 
       @tfd.JointDistributionCoroutine
       def prior_structure():
-        x = yield Root(tfd.Normal(loc=0., scale=1., name='x_0'))
-        v = yield Root(tfd.Normal(loc=0., scale=1., name='v_0'))
+        x = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name='x_0'))
+        v = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name='v_0'))
         for t in range(1, series_len):
           x = yield tfd.Normal(loc=x, scale=tf.math.exp(v)+eps, name=f'x_{t}')
           v = yield tfd.Normal(loc=mul*(v-theta), scale=scale, name=f'v_{t}')
@@ -121,7 +121,7 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
+                                                         'gated_normalizing_program',
                                                          'maf',
                                                          flow_params=flow_params)
     elif model_name == 'bottom':
@@ -175,7 +175,7 @@ def train(model, name, structure, dataset_name, save_dir):
       train_loss_avg.update_state(loss_value)
 
     train_loss_results.append(train_loss_avg.result())
-    print(train_loss_results[-1])
+    # print(train_loss_results[-1])
     if tf.math.is_nan(train_loss_results[-1]):
       break
 
@@ -225,13 +225,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf'] # 'sandwich']
+models = ['np_maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['stock']
+datasets = ['maf']
 n_runs = 5
 
 for run in range(n_runs):
