@@ -188,9 +188,18 @@ def train(model, name, dataset_name, save_dir):
   else:
     eval_dataset = tf.data.Dataset.from_generator(digits_generator,
                                                   output_types=tf.float32).map(
-      prior_matching_bijector).batch(10000)
+      prior_matching_bijector).batch(1000)
 
-  eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
+  epoch_loss_avg = tf.keras.metrics.Mean()
+  it = 0
+  for x in eval_dataset:
+    loss_value = -new_maf.log_prob(x)
+    epoch_loss_avg.update_state(loss_value)
+    if it==10:
+      break
+
+
+  eval_log_prob = epoch_loss_avg.result()
 
   results = {'samples' : tf.convert_to_tensor(new_maf.sample(1000)),
              'loss_eval': eval_log_prob,
