@@ -196,7 +196,8 @@ def train(model, name, dataset_name, save_dir):
 
   print('3')
 
-  results = {'samples' : tf.convert_to_tensor(new_maf.sample(1000)),
+  samples = tf.convert_to_tensor([new_maf.sample(100) for _ in range(10)])
+  results = {'samples' : samples,
              'loss_eval': eval_log_prob,
              'loss': train_loss_results
              }
