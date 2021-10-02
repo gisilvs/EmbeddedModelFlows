@@ -55,7 +55,7 @@ def sample(model, model_fixed, n_samples):
 def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
-    '''if trainable_mixture:
+    if trainable_mixture:
       if model_name == 'maf' or model_name=='rqs_maf':
         component_logits = tf.convert_to_tensor(
           [[1. / n_components for _ in range(n_components)] for _ in
@@ -82,22 +82,7 @@ def train(model, n_components, name, save_dir):
           name='locs')
         scales = tfp.util.TransformedVariable(
           [[scale for _ in range(n_components)] for _ in
-           range(n_dims)], tfb.Softplus(), name='scales')'''
-    if model_name == 'np_maf':
-      loc_range = 4.
-      scale = 1.
-    else:
-      loc_range = 10.
-      scale = 3.
-    component_logits = tf.convert_to_tensor(
-      [[1. / n_components for _ in range(n_components)] for _ in
-       range(n_dims)], name='component_logits')
-    locs = tf.convert_to_tensor(
-      [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
-      name='locs')
-    scales = tf.convert_to_tensor(
-      [[scale for _ in range(n_components)] for _ in
-       range(n_dims)], name='scales')
+           range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
@@ -113,7 +98,7 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
+                                                         'gated_normalizing_program',
                                                          'maf')
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
@@ -234,27 +219,3 @@ def train(model, n_components, name, save_dir):
   plt.close()
 
   print(f'{name} done!')
-
-datasets = ['checkerboard']
-models = ['sandwich']#, 'np_maf', 'maf']
-
-main_dir = '2d_toy_results_0'
-if not os.path.isdir(main_dir):
-  os.makedirs(main_dir)
-n_runs = 1
-
-for run in range(n_runs):
-  for data in datasets:
-    if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
-      os.makedirs(f'{main_dir}/run_{run}/{data}')
-    for model in models:
-      if model == 'maf':
-        name = 'maf'
-        train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'rqs':
-        name = 'rqs'
-        train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
-      else:
-        for n_components in [100]:
-          name = f'c{n_components}_{model}'
-          train(model, n_components, name, save_dir=f'{main_dir}/run_{run}/{data}')
