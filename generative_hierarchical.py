@@ -201,7 +201,7 @@ def train(model, name, dataset_name, save_dir):
     samples = tf.convert_to_tensor(new_maf.sample(1000))
 
   else:
-    samples = tf.convert_to_tensor([new_maf.sample(100) for _ in range(5)])
+    samples = tf.convert_to_tensor(new_maf.sample(100))
 
   print('4')
   results = {'samples' : samples,
