@@ -178,8 +178,6 @@ def train(model, n_components, name, save_dir):
       break
     it+=1
 
-  save_path = checkpoint_manager.save()
-
   new_maf, _ = build_model(model)
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
