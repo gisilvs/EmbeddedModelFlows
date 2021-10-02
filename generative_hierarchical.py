@@ -58,7 +58,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e5)
+num_iterations = int(10)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -152,6 +152,7 @@ def train(model, name, dataset_name, save_dir):
     if it == 0:
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
+      save_path = checkpoint_manager.save()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
@@ -180,8 +181,14 @@ def train(model, name, dataset_name, save_dir):
               format="png")
   plt.close()
 
-  eval_dataset = tf.data.Dataset.from_generator(iris_generator,
-                                             output_types=tf.float32).map(prior_matching_bijector).batch(100000)
+  if dataset_name == 'iris':
+    eval_dataset = tf.data.Dataset.from_generator(iris_generator,
+                                               output_types=tf.float32).map(prior_matching_bijector).batch(100000)
+
+  else:
+    eval_dataset = tf.data.Dataset.from_generator(digits_generator,
+                                                  output_types=tf.float32).map(
+      prior_matching_bijector).batch(100000)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
