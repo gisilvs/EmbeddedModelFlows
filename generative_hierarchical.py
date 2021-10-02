@@ -58,7 +58,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(10)
+num_iterations = int(2e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -181,7 +181,6 @@ def train(model, name, dataset_name, save_dir):
               format="png")
   plt.close()
 
-  print('1')
   if dataset_name == 'iris':
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
                                                output_types=tf.float32).map(prior_matching_bijector).batch(100000)
@@ -192,10 +191,8 @@ def train(model, name, dataset_name, save_dir):
                                                   output_types=tf.float32).map(
       prior_matching_bijector).batch(10000)
 
-  print('2')
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
-  print('3')
 
   if dataset_name=='iris':
     samples = tf.convert_to_tensor(new_maf.sample(1000))
@@ -203,7 +200,6 @@ def train(model, name, dataset_name, save_dir):
   else:
     samples = tf.convert_to_tensor(new_maf.sample(100))
 
-  print('4')
   results = {'samples' : samples,
              'loss_eval': eval_log_prob,
              'loss': train_loss_results
@@ -213,7 +209,7 @@ def train(model, name, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf','np_maf','sandwich']
+models = ['np_maf','sandwich','maf']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
@@ -221,7 +217,7 @@ if not os.path.isdir(main_dir):
 
 dataset = ['digits']
 
-n_runs = [0, 1]
+n_runs = [0]
 
 for run in n_runs:
   for data in dataset:
