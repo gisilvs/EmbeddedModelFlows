@@ -180,6 +180,7 @@ def train(model, name, dataset_name, save_dir):
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.close()
+  print('1')
 
   if dataset_name == 'iris':
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
@@ -203,6 +204,7 @@ def train(model, name, dataset_name, save_dir):
 
     eval_log_prob = epoch_loss_avg.result()
 
+  print('2')
 
 
 
@@ -213,6 +215,7 @@ def train(model, name, dataset_name, save_dir):
   with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+  print('3')
 
   print(f'{name} done!')
 models = ['maf','np_maf','sandwich']
