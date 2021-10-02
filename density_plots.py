@@ -220,13 +220,13 @@ def train(model, n_components, name, save_dir):
 
   print(f'{name} done!')
 
-datasets = ['8gaussians', 'checkerboard']
-models = ['np_maf', 'sandwich']#, 'np_maf', 'maf']
+datasets = ['checkerboard']
+models = ['sandwich']#, 'np_maf', 'maf']
 
 main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = 5
+n_runs = 1
 
 for run in range(n_runs):
   for data in datasets:
