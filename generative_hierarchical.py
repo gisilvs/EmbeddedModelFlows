@@ -199,6 +199,7 @@ def train(model, name, dataset_name, save_dir):
       epoch_loss_avg.update_state(loss_value)
       if it==10:
         break
+      it += 1
 
     eval_log_prob = epoch_loss_avg.result()
 
