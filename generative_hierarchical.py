@@ -186,6 +186,7 @@ def train(model, name, dataset_name, save_dir):
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
                                                output_types=tf.float32).map(prior_matching_bijector).batch(100000)
 
+
   else:
     eval_dataset = tf.data.Dataset.from_generator(digits_generator,
                                                   output_types=tf.float32).map(
@@ -196,7 +197,13 @@ def train(model, name, dataset_name, save_dir):
 
   print('3')
 
-  samples = tf.convert_to_tensor([new_maf.sample(100) for _ in range(5)])
+  if dataset_name=='iris':
+    samples = tf.convert_to_tensor(new_maf.sample(1000))
+
+  else:
+    samples = tf.convert_to_tensor([new_maf.sample(100) for _ in range(5)])
+
+  print('4')
   results = {'samples' : samples,
              'loss_eval': eval_log_prob,
              'loss': train_loss_results
