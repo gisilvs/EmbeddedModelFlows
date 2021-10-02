@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(500)
+num_iterations = int(2000)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -116,7 +116,10 @@ def train(model, name, structure, dataset_name, save_dir):
       surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
         prior_structure)[-1])
 
-    flow_params = {'num_hidden_units': 512}
+    if dataset_name == 'stock':
+      flow_params = {'num_hidden_units': 512}
+    elif dataset_name =='co2':
+      flow_params = {'num_hidden_units': 8}
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
@@ -153,9 +156,9 @@ def train(model, name, structure, dataset_name, save_dir):
   test = tf.data.Dataset.from_tensor_slices(test_data).map(
     prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
-  '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=1000)'''
-  optimizer = tf.optimizers.Adam(learning_rate=lr)
+  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=5e4)
+  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
   checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
@@ -225,7 +228,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf'] # 'sandwich']
+models = ['maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
@@ -237,17 +240,25 @@ n_runs = 5
 for run in range(n_runs):
 
   for data in datasets:
+    if data == 'stock':
+      structures = ['stock']
+    else:
+      structures = ['continuity', 'smoothness']
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
       if model == 'maf':
         name = 'maf'
-        train(model, name, structure='stock', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+        if data == 'stock':
+          structure = 'stock'
+        else:
+          structure = 'continuity'
+        train(model, name, structure=structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       elif model == 'bottom':
         name = 'bottom'
         train(model, name, structure='continuity', dataset_name=data,
               save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['stock']: #, 'smoothness']:
+        for structure in structures: #, 'smoothness']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
