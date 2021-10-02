@@ -180,33 +180,21 @@ def train(model, name, dataset_name, save_dir):
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.close()
-  print('1')
 
+  print('1')
   if dataset_name == 'iris':
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
                                                output_types=tf.float32).map(prior_matching_bijector).batch(100000)
 
-    eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
-
   else:
     eval_dataset = tf.data.Dataset.from_generator(digits_generator,
                                                   output_types=tf.float32).map(
-      prior_matching_bijector).batch(1000)
-
-    epoch_loss_avg = tf.keras.metrics.Mean()
-    it = 0
-    for x in eval_dataset:
-      loss_value = -new_maf.log_prob(x)
-      epoch_loss_avg.update_state(loss_value)
-      if it==10:
-        break
-      it += 1
-
-    eval_log_prob = epoch_loss_avg.result()
+      prior_matching_bijector).batch(100000)
 
   print('2')
+  eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
-
+  print('3')
 
   results = {'samples' : tf.convert_to_tensor(new_maf.sample(1000)),
              'loss_eval': eval_log_prob,
@@ -215,7 +203,6 @@ def train(model, name, dataset_name, save_dir):
   with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-  print('3')
 
   print(f'{name} done!')
 models = ['maf','np_maf','sandwich']
