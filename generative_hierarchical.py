@@ -58,7 +58,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(2e5)
+num_iterations = int(4e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -217,7 +217,7 @@ if not os.path.isdir(main_dir):
 
 dataset = ['digits']
 
-n_runs = [4]
+n_runs = [0]
 
 for run in n_runs:
   for data in dataset:
