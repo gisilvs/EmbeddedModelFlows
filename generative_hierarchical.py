@@ -183,12 +183,12 @@ def train(model, name, dataset_name, save_dir):
 
   if dataset_name == 'iris':
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
-                                               output_types=tf.float32).map(prior_matching_bijector).batch(10000)
+                                               output_types=tf.float32).map(prior_matching_bijector).batch(100000)
 
   else:
     eval_dataset = tf.data.Dataset.from_generator(digits_generator,
                                                   output_types=tf.float32).map(
-      prior_matching_bijector).batch(100000)
+      prior_matching_bijector).batch(10000)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
