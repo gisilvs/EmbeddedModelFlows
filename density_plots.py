@@ -99,14 +99,12 @@ def train(model, n_components, name, save_dir):
       [[scale for _ in range(n_components)] for _ in
        range(n_dims)], name='scales')
 
-
     @tfd.JointDistributionCoroutine
     def prior_structure():
-      for i in range(n_dims):
-        yield Root(tfd.MixtureSameFamily(
-          mixture_distribution=tfd.Categorical(logits=component_logits[i]),
-          components_distribution=tfd.Normal(loc=locs[i], scale=scales[i]),
-          name=f"prior_{i}"))
+      yield Root(tfd.Independent(tfd.MixtureSameFamily(
+        mixture_distribution=tfd.Categorical(logits=component_logits),
+        components_distribution=tfd.Normal(loc=locs, scale=scales),
+        name=f"prior"), 1))
 
     prior_matching_bijector = tfb.Chain(
       surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
