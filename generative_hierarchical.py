@@ -209,7 +209,7 @@ def train(model, name, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf','sandwich','maf']
+models = ['np_maf','maf','sandwich']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
