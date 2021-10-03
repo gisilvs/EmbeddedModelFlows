@@ -230,7 +230,7 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
     tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
 
   flow_params = {'activation_fn': tf.nn.relu}
-  flow_params['dtype'] = dtype
+  flow_params['dtype'] = tf.float32
   flow_params['ndims'] = ndims
   flow_params['num_flow_layers'] = num_layers_per_flow
   flow_params['num_hidden_units'] = 512
@@ -344,7 +344,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       flow_params['num_hidden_units'] = 512
     flow_params['is_iaf'] = False
     if 'activation_fn' not in flow_params:
-      flow_params['activation_fn'] = tf.math.tanh
+      flow_params['activation_fn'] = tf.nn.relu
     return _normalizing_flows(prior, flow_name='maf', flow_params=flow_params)
 
   elif surrogate_posterior_name == "real_nvp":
