@@ -156,9 +156,9 @@ def train(model, name, structure, dataset_name, save_dir):
   test = tf.data.Dataset.from_tensor_slices(test_data).map(
     prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
-  lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
-    initial_learning_rate=lr, decay_steps=5e4)
-  optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
+  '''lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
+    initial_learning_rate=lr, decay_steps=5e4)'''
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
