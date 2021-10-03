@@ -344,7 +344,7 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
       flow_params['num_hidden_units'] = 512
     flow_params['is_iaf'] = False
     if 'activation_fn' not in flow_params:
-      flow_params['activation_fn'] = tf.nn.relu
+      flow_params['activation_fn'] = tf.math.tanh
     return _normalizing_flows(prior, flow_name='maf', flow_params=flow_params)
 
   elif surrogate_posterior_name == "real_nvp":
