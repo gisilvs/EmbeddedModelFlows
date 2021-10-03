@@ -95,7 +95,7 @@ def train(model, name, structure, dataset_name, save_dir):
     series_len = 30
 
   def build_model(model_name):
-    if model=='maf':
+    if model=='maf' or model == 'maf3':
       scales = tf.ones(time_step_dim)
     else:
       scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
@@ -130,6 +130,10 @@ def train(model, name, structure, dataset_name, save_dir):
 
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+
+    elif model_name == 'maf3':
+      flow_params={'num_flow_layers':3}
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
@@ -216,13 +220,13 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf']
+models = ['maf3']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['ornstein']
+datasets = ['lorenz']
 n_runs = 5
 
 for run in range(n_runs):
@@ -233,6 +237,9 @@ for run in range(n_runs):
     for model in models:
       if model == 'maf':
         name = 'maf'
+        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'maf3':
+        name = 'maf3'
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       elif model == 'bottom':
         name = 'bottom'
