@@ -222,7 +222,7 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 models = ['np_maf']
 
-main_dir = 'time_series_results'
+main_dir = 'time_series_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
