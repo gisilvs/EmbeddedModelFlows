@@ -221,7 +221,7 @@ if not os.path.isdir(main_dir):
 
 dataset = ['digits']
 
-n_runs = [2]
+n_runs = [3]
 
 for run in n_runs:
   for data in dataset:
