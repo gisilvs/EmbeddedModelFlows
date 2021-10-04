@@ -58,7 +58,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e5)
+num_iterations = int(4e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -219,11 +219,11 @@ main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-dataset = ['iris']
+dataset = ['digits']
 
-n_runs = 5
+n_runs = [0]
 
-for run in range(n_runs):
+for run in n_runs:
   for data in dataset:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
