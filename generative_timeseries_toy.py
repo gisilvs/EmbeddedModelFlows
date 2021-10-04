@@ -220,16 +220,16 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf3']
+models = ['np_maf']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['ornstein']
-n_runs = 5
+datasets = ['brownian','ornstein']
+n_runs = [0]
 
-for run in range(n_runs):
+for run in n_runs:
 
   for data in datasets:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
