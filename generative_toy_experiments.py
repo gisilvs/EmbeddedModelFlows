@@ -56,7 +56,7 @@ def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
     if trainable_mixture:
-      if model_name == 'maf' or model_name=='rqs_maf':
+      if model_name == 'maf' or model_name == 'rqs_maf' or model_name=='maf3':
         component_logits = tf.convert_to_tensor(
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)])
@@ -78,7 +78,8 @@ def train(model, n_components, name, save_dir):
           [[1. / n_components for _ in range(n_components)] for _ in
            range(n_dims)], name='component_logits')
         locs = tf.Variable(
-          [tf.linspace(-loc_range, loc_range, n_components) for _ in range(n_dims)],
+          [tf.linspace(-loc_range, loc_range, n_components) for _ in
+           range(n_dims)],
           name='locs')
         scales = tfp.util.TransformedVariable(
           [[scale for _ in range(n_components)] for _ in
@@ -96,9 +97,14 @@ def train(model, n_components, name, save_dir):
         prior_structure)[-1])
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+
+    elif model_name == 'maf3':
+      flow_params = {'num_flow_layers': 3}
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf',
+                                                         flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'gated_normalizing_program',
+                                                         'normalizing_program',
                                                          'maf')
     elif model_name == 'sandwich':
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
@@ -106,13 +112,14 @@ def train(model, n_components, name, save_dir):
 
     elif model_name == 'rqs':
       flow_params = {
-      'num_flow_layers': 2,
-      'nbins': 128
-    }
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, surrogate_posterior_name='rqs', flow_params=flow_params)
+        'num_flow_layers': 2,
+        'nbins': 128
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='rqs',
+                                                         flow_params=flow_params)
       maf.sample(1)
     maf.log_prob(prior_structure.sample(1))
-
 
     return maf, prior_matching_bijector
 
@@ -161,8 +168,6 @@ def train(model, n_components, name, save_dir):
       break
     it+=1
 
-  save_path = checkpoint_manager.save()
-
   new_maf, _ = build_model(model)
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
@@ -180,16 +185,6 @@ def train(model, n_components, name, save_dir):
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
   plt.close()
-
-  '''if model in ['np_maf', 'sandwich', 'rqs_maf']:
-    if model == 'np_maf':
-      for i in range(len(new_maf.distribution.bijector.bijectors)):
-        if 'batch_normalization' in new_maf.distribution.bijector.bijectors[i].name:
-          new_maf.distribution.bijector.bijectors[i].batchnorm.trainable = False
-    else:
-      for i in range(len(new_maf.bijector.bijectors)):
-        if 'batch_normalization' in new_maf.bijector.bijectors[i].name == 'batch_normalization':
-          new_maf.bijector.bijectors[i].batchnorm.trainable = False'''
 
   plot_heatmap_2d(new_maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
@@ -228,10 +223,10 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ['8gaussians', 'checkerboard']
-models = ['np_maf', 'sandwich']#, 'np_maf', 'maf']
+datasets = ['8gaussians']
+models = ['maf3']#, 'np_maf', 'maf']
 
-main_dir = '2d_toy_results'
+main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 n_runs = 5
@@ -243,6 +238,9 @@ for run in range(n_runs):
     for model in models:
       if model == 'maf':
         name = 'maf'
+        train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'maf3':
+        name = 'maf3'
         train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
       elif model == 'rqs':
         name = 'rqs'
