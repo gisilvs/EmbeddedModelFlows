@@ -223,7 +223,7 @@ dataset = ['iris']
 
 n_runs = 5
 
-for run in n_runs:
+for run in range(n_runs):
   for data in dataset:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
