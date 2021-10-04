@@ -223,7 +223,7 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ['8gaussians']
+datasets = ['checkerboard']
 models = ['maf3']#, 'np_maf', 'maf']
 
 main_dir = '2d_toy_results_0'
