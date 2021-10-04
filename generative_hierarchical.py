@@ -58,7 +58,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(4e5)
+num_iterations = int(1e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -108,6 +108,10 @@ def train(model, name, dataset_name, save_dir):
 
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
+    elif model_name == 'maf3':
+      flow_params = {'num_flow_layers': 3}
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf',
+                                                         flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
@@ -209,23 +213,26 @@ def train(model, name, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['np_maf','maf','sandwich']
+models = ['maf3']
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-dataset = ['digits']
+dataset = ['iris']
 
-n_runs = [4]
+n_runs = 5
 
-for run in n_runs:
+for run in range(n_runs):
   for data in dataset:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
       if model == 'maf':
         name = 'maf'
+        train(model, name, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
+      elif model == 'maf3':
+        name = 'maf3'
         train(model, name, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         name = model
