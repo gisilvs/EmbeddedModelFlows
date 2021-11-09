@@ -229,7 +229,7 @@ main_dir = 'time_series_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['brownian']
+datasets = ['ornstein']
 n_runs = [0, 1, 2, 3, 4]
 
 for run in n_runs:
