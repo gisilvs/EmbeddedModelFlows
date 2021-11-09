@@ -119,7 +119,7 @@ def _van_der_pol(is_bridge, is_classification, seed=None):
                           scale=observation_noise,
                           name=f'y_{t}')
 
-  ground_truth = model.sample(seed=seed)
+  ground_truth = model.sample(1, seed=seed)
   lorenz_bridge = model.experimental_pin(ground_truth[60:])
   return lorenz_bridge, ground_truth[:60], lorenz_bridge.unnormalized_log_prob, ground_truth[60:]
 
