@@ -24,7 +24,7 @@ learning_rates = {'mean_field': 1e-3,
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
                            ground_truth, observations, learning_rate, i, seed):
 
-  repo_name = f'results_0/{model_name}/{surrogate_posterior_name}'
+  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
@@ -76,13 +76,18 @@ if not os.path.exists('results'):
   os.makedirs('results')
 
 #todo: test more radon
-model_names = [#'eight_schools',
+model_names = [
+    'van_der_pol_smoothing_r',
+    'van_der_pol_smoothing_c',
+    'van_der_pol_bridge_r',
+    'van_der_pol_bridge_c'
+    #'eight_schools',
                #'radon',
                #'brownian_smoothing_r',
                #'brownian_smoothing_c',
                #'brownian_bridge_r',
                #'brownian_bridge_c',
-               'lorenz_smoothing_r',
+               #'lorenz_smoothing_r',
                #'lorenz_smoothing_c',
                #'lorenz_bridge_r',
                #'lorenz_bridge_c',
@@ -92,12 +97,12 @@ model_names = [#'eight_schools',
                #'tanh_binary_tree_8',
                ]
 
-surrogate_posterior_names = [#'mean_field',
+surrogate_posterior_names = ['mean_field',
                              #'multivariate_normal',
-                             #'asvi',
+                             'asvi',
                              #'iaf',
                              #'normalizing_program',
-                             'gated_normalizing_program'
+                             #'gated_normalizing_program'
 ]
 
 backbone_names = [#'mean_field',

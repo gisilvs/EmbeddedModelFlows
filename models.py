@@ -84,6 +84,44 @@ def _lorenz_system(is_bridge, is_classification, seed=None):
   lorenz_bridge = model.experimental_pin(ground_truth[30:])
   return lorenz_bridge, ground_truth[:30], lorenz_bridge.unnormalized_log_prob, ground_truth[30:]
 
+def _van_der_pol(is_bridge, is_classification, seed=None):
+  @tfd.JointDistributionCoroutine
+  def model():
+    innovation_noise = .1
+    observation_noise = .5
+    k = 1.
+    mu = 1.
+    step_size = 0.2
+    truth = []
+    loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=2))
+    for t in range(1, 60):
+      x, y = tf.unstack(loc, axis=-1)
+      truth.append(x)
+      dx = y
+      dy = mu * (1-x**2)*y - x
+      delta = tf.stack([dx, dy], axis=-1)
+      loc = yield tfd.Independent(
+        tfd.Normal(loc + step_size * delta,
+                  tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
+        reinterpreted_batch_ndims=1)
+    x, y = tf.unstack(loc, axis=-1)
+    truth.append(x)
+
+    if is_bridge:
+      time_steps = list(range(20)) + list(range(40, 60))
+    else:
+      time_steps = range(60)
+    for t in time_steps:
+      if is_classification:
+        yield tfd.Bernoulli(logits=k * truth[t], name=f'y_{t}')
+      else:
+        yield tfd.Normal(loc=truth[t],
+                          scale=observation_noise,
+                          name=f'y_{t}')
+
+  ground_truth = model.sample(seed=seed)
+  lorenz_bridge = model.experimental_pin(ground_truth[60:])
+  return lorenz_bridge, ground_truth[:60], lorenz_bridge.unnormalized_log_prob, ground_truth[60:]
 
 def _eight_schools(seed=None):
   num_schools = 8  # number of schools
@@ -236,7 +274,19 @@ def get_model(model_name, seed=None):
     return _lorenz_system(is_bridge=True, is_classification=False, seed=seed)
 
   elif model_name=='lorenz_bridge_c':
-    return _lorenz_system(is_bridge=True, is_classification=True, seed=seed)
+    return _van_der_pol(is_bridge=True, is_classification=True, seed=seed)
+
+  elif model_name=='van_der_pol_smoothing_r':
+    return _van_der_pol(is_bridge=False, is_classification=False, seed=seed)
+
+  elif model_name=='van_der_pol_smoothing_c':
+    return _van_der_pol(is_bridge=False, is_classification=True, seed=seed)
+
+  elif model_name=='van_der_pol_bridge_r':
+    return _van_der_pol(is_bridge=True, is_classification=False, seed=seed)
+
+  elif model_name=='van_der_pol_bridge_c':
+    return _van_der_pol(is_bridge=True, is_classification=True, seed=seed)
 
   elif model_name=='eight_schools':
     return _eight_schools(seed=seed)
