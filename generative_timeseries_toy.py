@@ -95,7 +95,7 @@ def train(model, name, structure, dataset_name, save_dir):
     series_len = 30
 
   def build_model(model_name):
-    if model=='maf' or model == 'maf3':
+    if model=='maf' or model == 'maf3' or model == 'maf_swap':
       scales = tf.ones(time_step_dim)
     else:
       scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
@@ -130,7 +130,9 @@ def train(model, name, structure, dataset_name, save_dir):
 
     if model_name == 'maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf')
-
+    elif model_name == 'maf_swap':
+      flow_params={'swap':False}
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'maf3':
       flow_params={'num_flow_layers':3}
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
@@ -153,7 +155,6 @@ def train(model, name, structure, dataset_name, save_dir):
 
   dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100), dataset_name=dataset_name),
                                              output_types=tf.float32).map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
-
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -220,14 +221,16 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf']
+
+# maf_swap means that no swap is done
+models = ['maf_swap']
 
 main_dir = 'time_series_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['brownian','ornstein']
-n_runs = [0]
+datasets = ['brownian']
+n_runs = [5]
 
 for run in n_runs:
 
@@ -235,14 +238,8 @@ for run in n_runs:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
-      if model == 'maf':
-        name = 'maf'
-        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'maf3':
-        name = 'maf3'
-        train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'bottom':
-        name = 'bottom'
+      if model == 'maf' or model == 'maf3' or model == 'maf_swap' or model == 'bottom':
+        name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for structure in ['continuity', 'smoothness']:

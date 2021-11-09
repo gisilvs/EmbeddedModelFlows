@@ -55,7 +55,7 @@ def build_iaf_bijector(num_hidden_units,
                        ndims,
                        activation_fn,
                        dtype,
-                       num_flow_layers=2, is_iaf=True):
+                       num_flow_layers=2, is_iaf=True, swap=True):
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
   def make_maf():
@@ -80,7 +80,9 @@ def build_iaf_bijector(num_hidden_units,
   '''if not is_iaf:
     iaf_bijector.append(tfb.BatchNormalization())'''
   for _ in range(num_flow_layers - 1):
-    iaf_bijector.extend([make_swap(), make_maf()])
+    if swap:
+      iaf_bijector.extend([make_swap()])
+    iaf_bijector.extend([make_maf()])
     '''if not is_iaf:
       iaf_bijector.append(tfb.BatchNormalization())'''
 
