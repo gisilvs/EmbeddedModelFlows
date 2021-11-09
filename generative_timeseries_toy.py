@@ -136,6 +136,10 @@ def train(model, name, structure, dataset_name, save_dir):
     elif model_name == 'maf3':
       flow_params={'num_flow_layers':3}
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
+    elif model_name == 'maf3_swap':
+      flow_params = {'num_flow_layers': 3}
+      flow_params['swap'] = False
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf', flow_params=flow_params)
     elif model_name == 'np_maf':
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
@@ -223,7 +227,7 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['maf_swap']
+models = ['maf3_swap']
 
 main_dir = 'time_series_results_0'
 if not os.path.isdir(main_dir):
@@ -238,7 +242,7 @@ for run in n_runs:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
-      if model == 'maf' or model == 'maf3' or model == 'maf_swap' or model == 'bottom':
+      if model == 'maf' or model == 'maf3' or model == 'maf_swap' or model == 'bottom' or model == 'maf3_swap':
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
