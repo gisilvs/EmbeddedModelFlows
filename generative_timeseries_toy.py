@@ -65,10 +65,30 @@ def ornstein_uhlenbeck():
   for t in range(1, 30):
     new = yield tfd.Normal(loc=a*new, scale=.5)
 
+@tfd.JointDistributionCoroutine
+def van_der_pol():
+  mul = 2
+  innovation_noise = .1
+  mu = 1.
+  step_size = 0.2
+  loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=2))
+  for t in range(1, 30*mul):
+    x, y = tf.unstack(loc, axis=-1)
+    dx = y
+    dy = mu * (1-x**2)*y - x
+    delta = tf.stack([dx, dy], axis=-1)
+    loc = yield tfd.Independent(
+      tfd.Normal(loc + step_size * delta,
+                tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
+      reinterpreted_batch_ndims=1)
+
 def time_series_gen(batch_size, dataset_name):
   if dataset_name == 'lorenz':
     while True:
       yield tf.reshape(tf.transpose(tf.convert_to_tensor(lorenz_system.sample(batch_size)),[1,0,2]), [batch_size, -1])
+  if dataset_name == 'van_der_pol':
+    while True:
+      yield tf.reshape(tf.transpose(tf.convert_to_tensor(van_der_pol.sample(batch_size)),[1,0,2]), [batch_size, -1])
   elif dataset_name == 'brownian':
     while True:
       yield tf.math.exp(tf.reshape(tf.transpose(tf.convert_to_tensor(brownian_motion.sample(batch_size)),[1,0]), [batch_size, -1]))
@@ -91,6 +111,10 @@ def train(model, name, structure, dataset_name, save_dir):
     series_len = 30
 
   elif dataset_name == 'brownian' or dataset_name == 'ornstein':
+    time_step_dim = 1
+    series_len = 30
+
+  elif dataset_name == 'van_der_pol':
     time_step_dim = 1
     series_len = 30
 
@@ -227,13 +251,13 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['maf3_swap']
+models = ['np_maf']
 
-main_dir = 'time_series_results_0'
+main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['lorenz']
+datasets = ['van_der_pol']
 n_runs = [0, 1, 2, 3, 4]
 
 for run in n_runs:
@@ -246,6 +270,6 @@ for run in n_runs:
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['continuity', 'smoothness']:
+        for structure in ['continuity']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
