@@ -67,10 +67,10 @@ def ornstein_uhlenbeck():
 
 @tfd.JointDistributionCoroutine
 def van_der_pol():
-  mul = 2
+  mul = 4
   innovation_noise = .1
   mu = 1.
-  step_size = 0.2
+  step_size = 0.05
   loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=2))
   for t in range(1, 30*mul):
     x, y = tf.unstack(loc, axis=-1)
@@ -116,7 +116,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
   elif dataset_name == 'van_der_pol':
     time_step_dim = 2
-    series_len = 60
+    series_len = 120
 
   def build_model(model_name):
     if model=='maf' or model == 'maf3' or model == 'maf_swap':
@@ -270,6 +270,6 @@ for run in n_runs:
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['smoothness']:
+        for structure in ['continuity']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
