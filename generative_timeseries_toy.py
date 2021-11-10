@@ -115,8 +115,8 @@ def train(model, name, structure, dataset_name, save_dir):
     series_len = 30
 
   elif dataset_name == 'van_der_pol':
-    time_step_dim = 1
-    series_len = 30
+    time_step_dim = 2
+    series_len = 60
 
   def build_model(model_name):
     if model=='maf' or model == 'maf3' or model == 'maf_swap':
