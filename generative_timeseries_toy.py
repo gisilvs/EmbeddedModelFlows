@@ -270,6 +270,6 @@ for run in n_runs:
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['continuity']:
+        for structure in ['smoothness']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
