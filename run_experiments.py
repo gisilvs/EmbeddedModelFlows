@@ -24,7 +24,7 @@ learning_rates = {'mean_field': 1e-3,
 def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, surrogate_posterior, target_log_prob,
                            ground_truth, observations, learning_rate, i, seed):
 
-  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
+
 
   losses = tfp.vi.fit_surrogate_posterior(target_log_prob,
                                           surrogate_posterior,
@@ -32,6 +32,10 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
                                           num_steps=100000,
                                           sample_size=50)
 
+  if backbone_name:
+    surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
+
+  repo_name = f'results/{model_name}/{surrogate_posterior_name}'
   checkpoint = tf.train.Checkpoint(weights=surrogate_posterior.trainable_variables)
   ckpt_dir = f'{repo_name}/checkpoints_{i}'
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
@@ -55,13 +59,11 @@ def train_and_save_results(model_name, surrogate_posterior_name, backbone_name, 
   if surrogate_posterior_name == 'gated_normalizing_program':
     results['residual_fraction_vars'] = surrogate_posteriors.residual_fraction_vars
 
-  if 'brownian' in model_name or 'lorenz' in model_name:
+  if 'brownian' in model_name or 'lorenz' in model_name or 'van_der_pol' in \
+      model_name:
     results['observations'] = tf.convert_to_tensor(observations)
     results['ground_truth'] = tf.convert_to_tensor(ground_truth)
     results['samples'] = tf.convert_to_tensor(samples)
-
-  if backbone_name:
-    surrogate_posterior_name = f'{surrogate_posterior_name}_{backbone_name}'
 
 
   if not os.path.exists(repo_name):
@@ -97,17 +99,17 @@ model_names = [
                #'tanh_binary_tree_8',
                ]
 
-surrogate_posterior_names = [# 'mean_field',
+surrogate_posterior_names = ['mean_field',
                              #'multivariate_normal',
-                             # 'asvi',
+                             'asvi',
                              #'iaf',
-                             # 'normalizing_program',
+                             'normalizing_program',
                              'gated_normalizing_program'
 ]
 
-backbone_names = [# 'mean_field',
-                  'multivariate_normal',
-                  'iaf',
+backbone_names = ['mean_field',
+                  # 'multivariate_normal',
+                  # 'iaf',
                   #'highway_flow'
 ]
 
