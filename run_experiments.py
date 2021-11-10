@@ -99,10 +99,10 @@ model_names = [
                #'tanh_binary_tree_8',
                ]
 
-surrogate_posterior_names = [# 'mean_field',
-                             'multivariate_normal',
+surrogate_posterior_names = ['mean_field',
+                             #'multivariate_normal',
                              # 'asvi',
-                             'iaf',
+                             #'iaf',
                              # 'normalizing_program',
                              #'gated_normalizing_program'
 ]
