@@ -100,11 +100,11 @@ model_names = [
                ]
 
 surrogate_posterior_names = [# 'mean_field',
-                             #'multivariate_normal',
+                             'multivariate_normal',
                              # 'asvi',
-                             #'iaf',
+                             'iaf',
                              # 'normalizing_program',
-                             'gated_normalizing_program'
+                             #'gated_normalizing_program'
 ]
 
 backbone_names = [# 'mean_field',
