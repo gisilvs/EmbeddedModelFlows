@@ -85,16 +85,17 @@ def _lorenz_system(is_bridge, is_classification, seed=None):
   return lorenz_bridge, ground_truth[:30], lorenz_bridge.unnormalized_log_prob, ground_truth[30:]
 
 def _van_der_pol(is_bridge, is_classification, seed=None):
+  mul = 4
   @tfd.JointDistributionCoroutine
   def model():
     innovation_noise = .1
     observation_noise = .5
     k = 1.
     mu = 1.
-    step_size = 0.2
+    step_size = 0.05
     truth = []
     loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=2))
-    for t in range(1, 60):
+    for t in range(1, 30*mul):
       x, y = tf.unstack(loc, axis=-1)
       truth.append(x)
       dx = y
@@ -108,9 +109,9 @@ def _van_der_pol(is_bridge, is_classification, seed=None):
     truth.append(x)
 
     if is_bridge:
-      time_steps = list(range(20)) + list(range(40, 60))
+      time_steps = list(range(10*mul)) + list(range(20*mul, 30*mul))
     else:
-      time_steps = range(60)
+      time_steps = range(30*mul)
     for t in time_steps:
       if is_classification:
         yield tfd.Bernoulli(logits=k * truth[t], name=f'y_{t}')
@@ -120,8 +121,8 @@ def _van_der_pol(is_bridge, is_classification, seed=None):
                           name=f'y_{t}')
 
   ground_truth = model.sample(1, seed=seed)
-  lorenz_bridge = model.experimental_pin(ground_truth[60:])
-  return lorenz_bridge, ground_truth[:60], lorenz_bridge.unnormalized_log_prob, ground_truth[60:]
+  van_der_pol = model.experimental_pin(ground_truth[30*mul:])
+  return van_der_pol, ground_truth[:30*mul], van_der_pol.unnormalized_log_prob, ground_truth[30*mul:]
 
 def _eight_schools(seed=None):
   num_schools = 8  # number of schools
@@ -274,7 +275,7 @@ def get_model(model_name, seed=None):
     return _lorenz_system(is_bridge=True, is_classification=False, seed=seed)
 
   elif model_name=='lorenz_bridge_c':
-    return _van_der_pol(is_bridge=True, is_classification=True, seed=seed)
+    return _lorenz_system(is_bridge=True, is_classification=True, seed=seed)
 
   elif model_name=='van_der_pol_smoothing_r':
     return _van_der_pol(is_bridge=False, is_classification=False, seed=seed)
