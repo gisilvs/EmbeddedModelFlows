@@ -251,7 +251,7 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['maf']
+models = ['bottom']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
