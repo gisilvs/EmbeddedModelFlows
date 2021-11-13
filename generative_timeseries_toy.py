@@ -119,7 +119,8 @@ def train(model, name, structure, dataset_name, save_dir):
     series_len = 120
 
   def build_model(model_name):
-    if model=='maf' or model == 'maf3' or model == 'maf_swap':
+    if model=='maf' or model == 'maf3' or model == 'maf_swap' or model== \
+        'splines':
       scales = tf.ones(time_step_dim)
     else:
       scales = tfp.util.TransformedVariable(tf.ones(time_step_dim), tfb.Softplus())
