@@ -174,18 +174,19 @@ def train(model, name, structure, dataset_name, save_dir):
         'number_of_bins': 32,
         'input_dim': 90,
         'nn_layers': [32,32],
-        'b_interval': [4,4]
+        'b_interval': 30
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='splines',
                                                          flow_params=flow_params)
+      maf.sample(1)
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
         'number_of_bins': 32,
         'input_dim': 90,
         'nn_layers': [32, 32],
-        'b_interval': [4, 4]
+        'b_interval': 30
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='gated_normalizing_program',
