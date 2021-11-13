@@ -118,7 +118,7 @@ def train(model, n_components, name, save_dir):
         'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32,32],
-        'b_interval': [4,4]
+        'b_interval': 4
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='splines',
@@ -129,7 +129,7 @@ def train(model, n_components, name, save_dir):
         'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32, 32],
-        'b_interval': [4, 4]
+        'b_interval': 4
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='normalizing_program',
