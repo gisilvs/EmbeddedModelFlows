@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, build_rqs
+from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, make_splines
 from gate_bijector import GateBijector, GateBijectorForNormal
 from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 from tensorflow_probability.python.internal import prefer_static as ps
@@ -201,8 +201,8 @@ def _normalizing_flows(prior, flow_name, flow_params):
     # flow_params['dtype'] = dtype
     flow_params['ndims'] = ndims
     flow_bijector = build_real_nvp_bijector(**flow_params)
-  if flow_name == 'rqs':
-    flow_bijector = build_rqs(**flow_params)
+  if flow_name == 'splines':
+    flow_bijector = make_splines(**flow_params)
 
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,

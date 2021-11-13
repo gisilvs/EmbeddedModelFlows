@@ -4,6 +4,8 @@ import pickle
 import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
+from tensorflow_probability.python.internal import prefer_static as ps
+import time
 
 from toy_data import generate_2d_data
 import surrogate_posteriors
@@ -55,35 +57,35 @@ def sample(model, model_fixed, n_samples):
 def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
-    if trainable_mixture:
-      if model_name == 'maf' or model_name == 'rqs_maf' or model_name=='maf3':
-        component_logits = tf.convert_to_tensor(
-          [[1. / n_components for _ in range(n_components)] for _ in
-           range(n_dims)])
-        locs = tf.convert_to_tensor(
-          [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
-           in
-           range(n_dims)])
-        scales = tf.convert_to_tensor(
-          [[1. for _ in range(n_components)] for _ in
-           range(n_dims)])
+    '''if trainable_mixture:
+      if model_name == 'maf' or model_name == 'rqs_maf' or model_name=='maf3':'''
+    component_logits = tf.convert_to_tensor(
+      [[1. / n_components for _ in range(n_components)] for _ in
+       range(n_dims)])
+    locs = tf.convert_to_tensor(
+      [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
+       in
+       range(n_dims)])
+    scales = tf.convert_to_tensor(
+      [[1. for _ in range(n_components)] for _ in
+       range(n_dims)])
+    '''else:
+      if model_name == 'np_maf':
+        loc_range = 4.
+        scale = 1.
       else:
-        if model_name == 'np_maf':
-          loc_range = 4.
-          scale = 1.
-        else:
-          loc_range = 10.
-          scale = 3.
-        component_logits = tf.Variable(
-          [[1. / n_components for _ in range(n_components)] for _ in
-           range(n_dims)], name='component_logits')
-        locs = tf.Variable(
-          [tf.linspace(-loc_range, loc_range, n_components) for _ in
-           range(n_dims)],
-          name='locs')
-        scales = tfp.util.TransformedVariable(
-          [[scale for _ in range(n_components)] for _ in
-           range(n_dims)], tfb.Softplus(), name='scales')
+        loc_range = 10.
+        scale = 3.
+      component_logits = tf.Variable(
+        [[1. / n_components for _ in range(n_components)] for _ in
+         range(n_dims)], name='component_logits')
+      locs = tf.Variable(
+        [tf.linspace(-loc_range, loc_range, n_components) for _ in
+         range(n_dims)],
+        name='locs')
+      scales = tfp.util.TransformedVariable(
+        [[scale for _ in range(n_components)] for _ in
+         range(n_dims)], tfb.Softplus(), name='scales')'''
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
@@ -110,13 +112,16 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
-    elif model_name == 'rqs':
+    elif model_name == 'splines':
       flow_params = {
-        'num_flow_layers': 2,
-        'nbins': 128
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 2,
+        'nn_layers': [32,32],
+        'b_interval': [4,4]
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         surrogate_posterior_name='rqs',
+                                                         surrogate_posterior_name='splines',
                                                          flow_params=flow_params)
       maf.sample(1)
     maf.log_prob(prior_structure.sample(1))
@@ -153,8 +158,8 @@ def train(model, n_components, name, save_dir):
     loss_value = optimizer_step(maf, x)
     # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
-    '''if tf.math.is_nan(epoch_loss_avg.result()):
-      a = 0'''
+    if tf.math.is_nan(epoch_loss_avg.result()):
+      a = 0
     if it==0:
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
@@ -224,12 +229,12 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['np_maf', 'sandwich']#, 'np_maf', 'maf']
+models = ['splines', 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [0]
+n_runs = [0, 1]
 
 for run in n_runs:
   for data in datasets:
