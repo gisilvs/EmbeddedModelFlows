@@ -234,7 +234,7 @@ models = ['splines', 'np_maf', 'sandwich', 'maf', 'maf3']
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [0, 1]
+n_runs = [0, 1, 2, 3, 4]
 
 for run in n_runs:
   for data in datasets:
