@@ -168,6 +168,30 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          'gated_normalizing_program',
                                                          'maf')
+    elif model_name == 'splines':
+      flow_params = {
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 90,
+        'nn_layers': [32,32],
+        'b_interval': [4,4]
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='splines',
+                                                         flow_params=flow_params)
+    elif model_name == 'np_splines':
+      flow_params = {
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 90,
+        'nn_layers': [32, 32],
+        'b_interval': [4, 4]
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='gated_normalizing_program',
+                                                         backnone_name='splines',
+                                                         flow_params=flow_params)
+      maf.sample(1)
     elif model_name == 'bottom':
       maf = surrogate_posteriors.bottom_np_maf(prior_structure)
     elif model_name == 'sandwich':
@@ -251,13 +275,13 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['maf']
+models = ['splines']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
-datasets = ['van_der_pol']
+datasets = ['lorenz']
 n_runs = [0, 1, 2, 3, 4]
 
 for run in n_runs:
@@ -266,10 +290,11 @@ for run in n_runs:
     if not os.path.exists(f'{main_dir}/run_{run}/{data}'):
       os.makedirs(f'{main_dir}/run_{run}/{data}')
     for model in models:
-      if model == 'maf' or model == 'maf3' or model == 'maf_swap' or model == 'bottom' or model == 'maf3_swap':
+      if model == 'maf' or model == 'maf3' or model == 'maf_swap' or model ==\
+          'bottom' or model == 'maf3_swap' or model == 'splines':
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['smoothness']:
+        for structure in ['continuity','smoothness']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
