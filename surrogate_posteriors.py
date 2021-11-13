@@ -355,8 +355,8 @@ def get_surrogate_posterior(prior, surrogate_posterior_name,
     return _normalizing_flows(prior, flow_name='real_nvp',
                               flow_params=flow_params)
 
-  elif surrogate_posterior_name == "rqs":
-    return _normalizing_flows(prior, flow_name='rqs',
+  elif surrogate_posterior_name == "splines":
+    return _normalizing_flows(prior, flow_name='splines',
                               flow_params=flow_params)
 
   elif surrogate_posterior_name == "normalizing_program":
