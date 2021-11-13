@@ -199,7 +199,7 @@ def train(model, name, structure, dataset_name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
-    maf.log_prob(prior_structure.sample(1))
+    maf.log_prob(prior_structure.sample(2))
 
     return maf, prior_matching_bijector
 
