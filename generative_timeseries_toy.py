@@ -171,7 +171,7 @@ def train(model, name, structure, dataset_name, save_dir):
     elif model_name == 'splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 32,
+        'number_of_bins': 8,
         'input_dim': 90,
         'nn_layers': [32,32],
         'b_interval': 30
@@ -183,7 +183,7 @@ def train(model, name, structure, dataset_name, save_dir):
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 32,
+        'number_of_bins': 8,
         'input_dim': 90,
         'nn_layers': [32, 32],
         'b_interval': 30
@@ -276,7 +276,7 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['splines']
+models = ['np_splines']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
