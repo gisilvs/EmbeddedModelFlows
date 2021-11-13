@@ -123,6 +123,18 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='splines',
                                                          flow_params=flow_params)
+    elif model_name == 'np_splines':
+      flow_params = {
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 2,
+        'nn_layers': [32, 32],
+        'b_interval': [4, 4]
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='normalizing_program',
+                                                         backnone_name='splines',
+                                                         flow_params=flow_params)
       maf.sample(1)
     maf.log_prob(prior_structure.sample(1))
 
@@ -229,7 +241,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+models = ['np_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
