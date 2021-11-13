@@ -349,9 +349,16 @@ def make_splines(input_dim, number_of_bins, nn_layers,
     (np.arange(input_dim / 2, input_dim), np.arange(0, input_dim / 2))),
                         tf.int32)
   bijector_chain = []
-  for i in range(layers):
-    bijector_chain.append(NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim/2)+1, number_of_bins=number_of_bins, nn_layers=nn_layers, b_interval=b_interval))
+  bijector_chain.append(
+    NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
+                     number_of_bins=number_of_bins, nn_layers=nn_layers,
+                     b_interval=b_interval))
+  for i in range(layers-1):
     bijector_chain.append(tfb.Permute(permutation))
+    bijector_chain.append(
+      NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
+                       number_of_bins=number_of_bins, nn_layers=nn_layers,
+                       b_interval=b_interval))
   return bijector_chain
 
 def build_iaf_bijector(num_hidden_units,
