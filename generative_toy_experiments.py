@@ -115,7 +115,7 @@ def train(model, n_components, name, save_dir):
     elif model_name == 'splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 32,
+        'number_of_bins': 8,
         'input_dim': 2,
         'nn_layers': [32,32],
         'b_interval': 4
@@ -126,7 +126,7 @@ def train(model, n_components, name, save_dir):
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 32,
+        'number_of_bins': 8,
         'input_dim': 2,
         'nn_layers': [32, 32],
         'b_interval': 4
