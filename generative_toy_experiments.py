@@ -247,8 +247,8 @@ for run in n_runs:
       elif model == 'maf3':
         name = 'maf3'
         train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
-      elif model == 'rqs':
-        name = 'rqs'
+      elif model == 'splines':
+        name = 'splines'
         train(model, 20, name, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
         for n_components in [100]:
