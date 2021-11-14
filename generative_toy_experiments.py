@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e5)
+num_iterations = int(5e2)
 n_dims = 2
 
 def clear_folder(folder):
@@ -57,35 +57,36 @@ def sample(model, model_fixed, n_samples):
 def train(model, n_components, name, save_dir):
   def build_model(model_name, trainable_mixture=True, component_logits=None,
                   locs=None, scales=None):
-    '''if trainable_mixture:
-      if model_name == 'maf' or model_name == 'rqs_maf' or model_name=='maf3':'''
-    component_logits = tf.convert_to_tensor(
-      [[1. / n_components for _ in range(n_components)] for _ in
-       range(n_dims)])
-    locs = tf.convert_to_tensor(
-      [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
-       in
-       range(n_dims)])
-    scales = tf.convert_to_tensor(
-      [[1. for _ in range(n_components)] for _ in
-       range(n_dims)])
-    '''else:
-      if model_name == 'np_maf':
-        loc_range = 4.
-        scale = 1.
+    if trainable_mixture:
+      if model_name == 'maf' or model_name == 'rqs_maf' or model_name=='maf3'\
+          or model_name== 'splines':
+        component_logits = tf.convert_to_tensor(
+          [[1. / n_components for _ in range(n_components)] for _ in
+           range(n_dims)])
+        locs = tf.convert_to_tensor(
+          [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
+           in
+           range(n_dims)])
+        scales = tf.convert_to_tensor(
+          [[1. for _ in range(n_components)] for _ in
+           range(n_dims)])
       else:
-        loc_range = 10.
-        scale = 3.
-      component_logits = tf.Variable(
-        [[1. / n_components for _ in range(n_components)] for _ in
-         range(n_dims)], name='component_logits')
-      locs = tf.Variable(
-        [tf.linspace(-loc_range, loc_range, n_components) for _ in
-         range(n_dims)],
-        name='locs')
-      scales = tfp.util.TransformedVariable(
-        [[scale for _ in range(n_components)] for _ in
-         range(n_dims)], tfb.Softplus(), name='scales')'''
+        if model_name == 'np_maf' or model_name=='np_splines':
+          loc_range = 4.
+          scale = 1.
+        else:
+          loc_range = 10.
+          scale = 3.
+        component_logits = tf.Variable(
+          [[1. / n_components for _ in range(n_components)] for _ in
+           range(n_dims)], name='component_logits')
+        locs = tf.Variable(
+          [tf.linspace(-loc_range, loc_range, n_components) for _ in
+           range(n_dims)],
+          name='locs')
+        scales = tfp.util.TransformedVariable(
+          [[scale for _ in range(n_components)] for _ in
+           range(n_dims)], tfb.Softplus(), name='scales')
 
     @tfd.JointDistributionCoroutine
     def prior_structure():
@@ -245,7 +246,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+models = ['sandwich_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
