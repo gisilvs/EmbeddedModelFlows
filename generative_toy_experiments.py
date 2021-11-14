@@ -140,7 +140,7 @@ def train(model, n_components, name, save_dir):
                                                          surrogate_posterior_name='normalizing_program',
                                                          backnone_name='splines',
                                                          flow_params=flow_params)
-      maf.sample(1)
+      # maf.sample(1)
     maf.log_prob(prior_structure.sample(2))
 
     return maf, prior_matching_bijector
