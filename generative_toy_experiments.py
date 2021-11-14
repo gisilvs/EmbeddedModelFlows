@@ -112,6 +112,10 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
+    elif model_name == 'sandwich_splines':
+      maf = surrogate_posteriors._sandwich_splines_normalizing_program(
+        prior_structure)
+
     elif model_name == 'splines':
       flow_params = {
         'layers': 6,
@@ -241,7 +245,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['splines', 'np_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+models = ['sandwich_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
