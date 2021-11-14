@@ -13,13 +13,15 @@ from plot_utils import plot_heatmap_2d, plot_samples
 import numpy as np
 import matplotlib.pyplot as plt
 
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e4)
+num_iterations = int(1e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -172,7 +174,7 @@ def train(model, name, structure, dataset_name, save_dir):
     elif model_name == 'splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 8,
+        'number_of_bins': 32,
         'input_dim': 90,
         'nn_layers': [32,32],
         'b_interval': 30
@@ -184,7 +186,7 @@ def train(model, name, structure, dataset_name, save_dir):
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 8,
+        'number_of_bins': 32,
         'input_dim': 90,
         'nn_layers': [32, 32],
         'b_interval': 30
@@ -231,6 +233,7 @@ def train(model, name, structure, dataset_name, save_dir):
     if it == 0:
       best_loss = epoch_loss_avg.result()
       epoch_loss_avg = tf.keras.metrics.Mean()
+      save_path = checkpoint_manager.save()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
       #print(train_loss_results[-1])
@@ -261,7 +264,8 @@ def train(model, name, structure, dataset_name, save_dir):
               format="png")
   plt.close()
 
-  eval_dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(1e6), dataset_name=dataset_name),
+  eval_dataset = tf.data.Dataset.from_generator(functools.partial(
+    time_series_gen, batch_size=int(1e4), dataset_name=dataset_name),
                                              output_types=tf.float32).map(prior_matching_bijector)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
@@ -277,14 +281,14 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['splines']
+models = ['np_splines']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
 datasets = ['lorenz']
-n_runs = [0, 1, 2, 3, 4]
+n_runs = [0]
 
 for run in n_runs:
 
@@ -297,6 +301,6 @@ for run in n_runs:
         name = model
         train(model, name, structure='continuity', dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')
       else:
-        for structure in ['continuity','smoothness']:
+        for structure in ['continuity']:
           name = f'{model}_{structure}'
           train(model, name, structure, dataset_name=data, save_dir=f'{main_dir}/run_{run}/{data}')

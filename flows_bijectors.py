@@ -72,6 +72,120 @@ class NeuralSplineFlow(tfb.Bijector):
   # some calculation could be done in one-line of code but it was preferred to explicitly write them
   # for easy debugging purposes during the development and also to give an understanding of the implementations of the terms in the paper
   # to the reader
+
+  def return_identity(self, x):
+    return x
+
+  def return_forward_result(self, x_d_to_D, input_mask, x_1_to_d,
+                       intervals_for_func):
+    output = tf.zeros(tf.shape(x_d_to_D))
+    input_mask_indexes = tf.where(input_mask)
+    neg_input_mask_indexes = tf.where(~input_mask)
+    thetas = self._produce_thetas(x_1_to_d)
+    thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
+                                                    input_mask_indexes)
+    interval_indices = input_mask_indexes[:, 1]
+
+    input_for_spline = x_d_to_D[input_mask]
+    intervals_for_input = tf.gather(intervals_for_func, interval_indices)
+    x_bin_sizes = self._bins(thetas_1, intervals_for_input)
+    knot_xs = self._knots(x_bin_sizes, intervals_for_input)
+    y_bin_sizes = self._bins(thetas_2, intervals_for_input)
+    knot_ys = self._knots(y_bin_sizes, intervals_for_input)
+    derivatives = self._derivatives(thetas_3)
+    locs = self._knots_locations(input_for_spline, knot_xs)
+    floor_indices = self._indices(locs - 1)
+    ceil_indices = self._indices(locs)
+    xi_values = self._xi_values(input_for_spline, knot_xs, x_bin_sizes,
+                                floor_indices)
+    s_values = self._s_values(y_bin_sizes, x_bin_sizes)
+    forward_val = self._g_function(input_for_spline, floor_indices,
+                                   ceil_indices, xi_values, s_values,
+                                   y_bin_sizes, derivatives, knot_ys)
+    output = tf.tensor_scatter_nd_update(
+      tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
+      input_mask_indexes, tf.expand_dims(
+        tf.dtypes.cast(tf.transpose(forward_val), dtype=tf.float32), 1))
+    output = tf.tensor_scatter_nd_update(output, neg_input_mask_indexes,
+                                         tf.expand_dims(x_d_to_D[~input_mask],
+                                                        1))
+    return output
+
+  def return_inverse_result(self, y_d_to_D, input_mask, y_1_to_d,
+                       intervals_for_func):
+    output = tf.zeros(tf.shape(y_d_to_D), dtype=tf.float32)
+    input_mask_indexes = tf.where(input_mask)
+    neg_input_mask_indexes = tf.where(~input_mask)
+    thetas = self._produce_thetas(y_1_to_d)
+    thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
+                                                    input_mask_indexes)
+    input_for_inverse = y_d_to_D[input_mask]
+    interval_indices = input_mask_indexes[:, 1]
+
+    intervals_for_input = tf.gather(intervals_for_func, interval_indices)
+    x_bin_sizes = self._bins(thetas_1, intervals_for_input)
+    knot_xs = self._knots(x_bin_sizes, intervals_for_input)
+    y_bin_sizes = self._bins(thetas_2, intervals_for_input)
+    knot_ys = self._knots(y_bin_sizes, intervals_for_input)
+    derivatives = self._derivatives(thetas_3)
+    locs = self._knots_locations(input_for_inverse, knot_ys)
+    floor_indices = self._indices(locs - 1)
+    ceil_indices = self._indices(locs)
+    s_values = self._s_values(y_bin_sizes, x_bin_sizes)
+
+    inverse_val = self._inverse_g_function(input_for_inverse, floor_indices,
+                                           ceil_indices, s_values,
+                                           y_bin_sizes, derivatives, knot_ys,
+                                           knot_xs, x_bin_sizes)
+    output = tf.tensor_scatter_nd_update(
+      tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
+      input_mask_indexes, tf.expand_dims(
+        tf.dtypes.cast(tf.transpose(inverse_val), dtype=tf.float32), 1))
+    output = tf.tensor_scatter_nd_update(
+      tf.dtypes.cast(output, dtype=tf.float32), neg_input_mask_indexes,
+      tf.dtypes.cast(tf.expand_dims(y_d_to_D[~input_mask], 1), tf.float32))
+    return tf.concat([tf.dtypes.cast(y_1_to_d, tf.float32),
+                      tf.dtypes.cast(tf.squeeze(output, -1), tf.float32)],
+                     axis=-1)
+
+  def return_identity_log_det(self):
+    return tf.constant(0.0, dtype=tf.float32)
+
+  def return_result_log_det(self, x, input_mask, x_1_to_d, intervals_for_func, \
+                                   x_d_to_D):
+    input_mask_indexes = tf.where(input_mask)
+    neg_input_mask_indexes = tf.where(~input_mask)
+    thetas = self._produce_thetas(x_1_to_d)
+    thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
+                                                    input_mask_indexes)
+    interval_indices = input_mask_indexes[:, 1]
+    intervals_for_input = tf.gather(intervals_for_func, interval_indices)
+    input_for_derivative = x_d_to_D[input_mask]
+    x_bin_sizes = self._bins(thetas_1, intervals_for_input)
+    knot_xs = self._knots(x_bin_sizes, intervals_for_input)
+    y_bin_sizes = self._bins(thetas_2, intervals_for_input)
+    knot_ys = self._knots(y_bin_sizes, intervals_for_input)
+    derivatives = self._derivatives(thetas_3)
+    locs = self._knots_locations(input_for_derivative, knot_xs)
+    floor_indices = self._indices(locs - 1)
+    ceil_indices = self._indices(locs)
+    s_values = self._s_values(y_bin_sizes, x_bin_sizes)
+    xi_values = self._xi_values(input_for_derivative, knot_xs, x_bin_sizes,
+                                floor_indices)
+    dervs = self._derivative_of_g_func(input_for_derivative, floor_indices,
+                                       ceil_indices, xi_values, s_values,
+                                       derivatives)
+    output = tf.ones(tf.shape(x), dtype=tf.float32)
+    squeezed = tf.tensor_scatter_nd_update(
+      tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
+      input_mask_indexes,
+      tf.expand_dims(tf.transpose(tf.dtypes.cast(dervs, dtype=tf.float32)),
+                     1))
+    output = tf.squeeze(squeezed)
+    log_dervs = tf.math.log(output)
+    log_det_sum = tf.reduce_sum(log_dervs, axis=1)
+    return log_det_sum
+
   def _produce_thetas(self, x):
     thetas = self.nn_model(x)
     thetas = tf.reshape(thetas, [tf.shape(x)[0], self.remaining_dims,
@@ -184,61 +298,37 @@ class NeuralSplineFlow(tfb.Bijector):
     return derivative_result
 
   def _data_mask(self, x_d_to_D, interval):
-    less_than_right_limit_mask = tf.less(x_d_to_D, interval)
-    bigger_than_left_limit_mask = tf.greater(x_d_to_D, -1.0 * interval)
+    less_than_right_limit_mask = x_d_to_D < interval
+    bigger_than_left_limit_mask = x_d_to_D > -1.0 * interval
     input_mask = less_than_right_limit_mask & bigger_than_left_limit_mask
     return input_mask
 
   def _forward(self, x):
     x_1_to_d, x_d_to_D = x[:, :self.first_d_dims], x[:, self.first_d_dims:]
-    x_d_to_D = tf.constant(x_d_to_D, dtype=tf.float32)
-    x_1_to_d = tf.constant(x_1_to_d, dtype=tf.float32)
+    #x_d_to_D = tf.constant(x_d_to_D, dtype=tf.float32)
+    #x_1_to_d = tf.constant(x_1_to_d, dtype=tf.float32)
     _, intervals_for_func = self.b_interval[
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
     y_1_to_d = x_1_to_d
     input_mask = self._data_mask(x_d_to_D, intervals_for_func)
 
-    def return_identity(): return x
-
-    def return_result():
-      output = tf.zeros(tf.shape(x_d_to_D))
-      input_mask_indexes = tf.where(input_mask)
-      neg_input_mask_indexes = tf.where(~input_mask)
-      thetas = self._produce_thetas(x_1_to_d)
-      thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
-                                                      input_mask_indexes)
-      interval_indices = input_mask_indexes[:, 1]
-
-      input_for_spline = x_d_to_D[input_mask]
-      intervals_for_input = tf.gather(intervals_for_func, interval_indices)
-      x_bin_sizes = self._bins(thetas_1, intervals_for_input)
-      knot_xs = self._knots(x_bin_sizes, intervals_for_input)
-      y_bin_sizes = self._bins(thetas_2, intervals_for_input)
-      knot_ys = self._knots(y_bin_sizes, intervals_for_input)
-      derivatives = self._derivatives(thetas_3)
-      locs = self._knots_locations(input_for_spline, knot_xs)
-      floor_indices = self._indices(locs - 1)
-      ceil_indices = self._indices(locs)
-      xi_values = self._xi_values(input_for_spline, knot_xs, x_bin_sizes,
-                                  floor_indices)
-      s_values = self._s_values(y_bin_sizes, x_bin_sizes)
-      forward_val = self._g_function(input_for_spline, floor_indices,
-                                     ceil_indices, xi_values, s_values,
-                                     y_bin_sizes, derivatives, knot_ys)
-      output = tf.tensor_scatter_nd_update(
-        tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
-        input_mask_indexes, tf.expand_dims(
-          tf.dtypes.cast(tf.transpose(forward_val), dtype=tf.float32), 1))
-      output = tf.tensor_scatter_nd_update(output, neg_input_mask_indexes,
-                                           tf.expand_dims(x_d_to_D[~input_mask],
-                                                          1))
-      return output
-
     # these conditions are used in order to be able to use tf.function however
     # it didn't work with tf.function.
+    '''res = tf.cond(tf.reduce_any(input_mask),
+            lambda:1, lambda:0)
+    if res> 0:
+      r = self.return_forward_result(x_d_to_D, input_mask, x_1_to_d,
+                                     intervals_for_func)
+    else:
+      r = self.return_identity(x)'''
+
     r = tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
-                return_identity, return_result)
+                lambda: self.return_identity(x), lambda:
+                self.return_forward_result(
+      x_d_to_D,
+                                                             input_mask, x_1_to_d,
+                                     intervals_for_func))
     y = tf.concat([y_1_to_d, tf.squeeze(r, -1)], axis=-1)
     return y
 
@@ -247,50 +337,17 @@ class NeuralSplineFlow(tfb.Bijector):
     _, intervals_for_func = self.b_interval[
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
-    x_1_to_d = y_1_to_d
     input_mask = self._data_mask(y_d_to_D, intervals_for_func)
-
-    def return_identity():
-      return y
-
-    def return_result():
-      output = tf.zeros(tf.shape(y_d_to_D), dtype=tf.float32)
-      input_mask_indexes = tf.where(input_mask)
-      neg_input_mask_indexes = tf.where(~input_mask)
-      thetas = self._produce_thetas(y_1_to_d)
-      thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
-                                                      input_mask_indexes)
-      input_for_inverse = y_d_to_D[input_mask]
-      interval_indices = input_mask_indexes[:, 1]
-
-      intervals_for_input = tf.gather(intervals_for_func, interval_indices)
-      x_bin_sizes = self._bins(thetas_1, intervals_for_input)
-      knot_xs = self._knots(x_bin_sizes, intervals_for_input)
-      y_bin_sizes = self._bins(thetas_2, intervals_for_input)
-      knot_ys = self._knots(y_bin_sizes, intervals_for_input)
-      derivatives = self._derivatives(thetas_3)
-      locs = self._knots_locations(input_for_inverse, knot_ys)
-      floor_indices = self._indices(locs - 1)
-      ceil_indices = self._indices(locs)
-      s_values = self._s_values(y_bin_sizes, x_bin_sizes)
-
-      inverse_val = self._inverse_g_function(input_for_inverse, floor_indices,
-                                             ceil_indices, s_values,
-                                             y_bin_sizes, derivatives, knot_ys,
-                                             knot_xs, x_bin_sizes)
-      output = tf.tensor_scatter_nd_update(
-        tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
-        input_mask_indexes, tf.expand_dims(
-          tf.dtypes.cast(tf.transpose(inverse_val), dtype=tf.float32), 1))
-      output = tf.tensor_scatter_nd_update(
-        tf.dtypes.cast(output, dtype=tf.float32), neg_input_mask_indexes,
-        tf.dtypes.cast(tf.expand_dims(y_d_to_D[~input_mask], 1), tf.float32))
-      return tf.concat([tf.dtypes.cast(y_1_to_d, tf.float32),
-                        tf.dtypes.cast(tf.squeeze(output, -1), tf.float32)],
-                       axis=-1)
-
+    '''res = tf.cond(tf.reduce_any(input_mask),
+                  lambda:1,lambda: 0)
+    if res> 0:
+      return self.return_inverse_result(y_d_to_D, input_mask, y_1_to_d,
+                                        intervals_for_func)
+    else:
+      return self.return_identity(y)'''
     return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
-                   return_identity, return_result)
+                   lambda: self.return_identity(y), lambda : self.return_inverse_result(y_d_to_D,input_mask, y_1_to_d,
+                                        intervals_for_func))
 
   def _forward_log_det_jacobian(self, x, thetas=None):
     x_1_to_d, x_d_to_D = x[:, :self.first_d_dims], x[:, self.first_d_dims:]
@@ -298,50 +355,21 @@ class NeuralSplineFlow(tfb.Bijector):
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
     input_mask = self._data_mask(x_d_to_D, intervals_for_func)
+    '''res = tf.cond(tf.reduce_any(input_mask),
+                  lambda:1, lambda:0)
+    if res > 0:
+      return self.return_result_log_det(x, input_mask, x_1_to_d,
+                                        intervals_for_func, x_d_to_D)
+    else:
+      return self.return_identity_log_det()'''
+    return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
+                lambda: self.return_identity_log_det(), lambda:
+                self.return_result_log_det(x,input_mask, x_1_to_d,
+                                        intervals_for_func, x_d_to_D))
 
-    def return_identity_log_det(): return tf.constant(0.0, dtype=tf.float32)
-
-    def return_result_log_det():
-      input_mask_indexes = tf.where(input_mask)
-      neg_input_mask_indexes = tf.where(~input_mask)
-      thetas = self._produce_thetas(x_1_to_d)
-      thetas_1, thetas_2, thetas_3 = self._get_thetas(thetas,
-                                                      input_mask_indexes)
-      interval_indices = input_mask_indexes[:, 1]
-      intervals_for_input = tf.gather(intervals_for_func, interval_indices)
-      input_for_derivative = x_d_to_D[input_mask]
-      x_bin_sizes = self._bins(thetas_1, intervals_for_input)
-      knot_xs = self._knots(x_bin_sizes, intervals_for_input)
-      y_bin_sizes = self._bins(thetas_2, intervals_for_input)
-      knot_ys = self._knots(y_bin_sizes, intervals_for_input)
-      derivatives = self._derivatives(thetas_3)
-      locs = self._knots_locations(input_for_derivative, knot_xs)
-      floor_indices = self._indices(locs - 1)
-      ceil_indices = self._indices(locs)
-      s_values = self._s_values(y_bin_sizes, x_bin_sizes)
-      xi_values = self._xi_values(input_for_derivative, knot_xs, x_bin_sizes,
-                                  floor_indices)
-      dervs = self._derivative_of_g_func(input_for_derivative, floor_indices,
-                                         ceil_indices, xi_values, s_values,
-                                         derivatives)
-      output = tf.ones(tf.shape(x), dtype=tf.float32)
-      squeezed = tf.tensor_scatter_nd_update(
-        tf.dtypes.cast(tf.expand_dims(output, 2), dtype=tf.float32),
-        input_mask_indexes,
-        tf.expand_dims(tf.transpose(tf.dtypes.cast(dervs, dtype=tf.float32)),
-                       1))
-      output = tf.squeeze(squeezed)
-      log_dervs = tf.math.log(output)
-      log_det_sum = tf.reduce_sum(log_dervs, axis=1)
-      return log_det_sum
-
-    r = tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
-                return_identity_log_det, return_result_log_det)
-    return r
-
-  def _inverse_log_det_jacobian(self, y):
+  '''def _inverse_log_det_jacobian(self, y):
     neg_for_log_det = -1 * self._forward_log_det_jacobian(self._inverse(y))
-    return neg_for_log_det
+    return neg_for_log_det'''
 
 def make_splines(input_dim, number_of_bins, nn_layers,
                  b_interval, layers):

@@ -115,7 +115,7 @@ def train(model, n_components, name, save_dir):
     elif model_name == 'splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 8,
+        'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32,32],
         'b_interval': 4
@@ -126,7 +126,7 @@ def train(model, n_components, name, save_dir):
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
-        'number_of_bins': 8,
+        'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32, 32],
         'b_interval': 4
@@ -209,7 +209,7 @@ def train(model, n_components, name, save_dir):
   plt.close()
 
   eval_dataset = tf.data.Dataset.from_generator(
-    functools.partial(generate_2d_data, data=data, batch_size=int(1e6)),
+    functools.partial(generate_2d_data, data=data, batch_size=int(1e4)),
     output_types=tf.float32).map(prior_matching_bijector)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
@@ -241,7 +241,7 @@ def train(model, n_components, name, save_dir):
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+models = ['splines', 'np_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
