@@ -155,16 +155,18 @@ def train(model, n_components, name, save_dir):
 
   maf, prior_matching_bijector = build_model(model)
 
-  '''dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
+  dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
   dataset = dataset.map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
     initial_learning_rate=lr, decay_steps=num_iterations)
   optimizer = tf.optimizers.Adam(learning_rate=lr_decayed_fn)
-  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)'''
+  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
-  '''checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
+  if os.path.isdir(ckpt_dir):
+    clear_folder(ckpt_dir)
+  checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
                                                   max_to_keep=20)
   train_loss_results = []
   epoch_loss_avg = tf.keras.metrics.Mean()
@@ -172,7 +174,10 @@ def train(model, n_components, name, save_dir):
   for x in dataset:
 
     # Optimize the model
-    loss_value = optimizer_step(maf, x)
+    try:
+      loss_value = optimizer_step(maf, x)
+    except:
+      break
     # print(loss_value)
     epoch_loss_avg.update_state(loss_value)
     if tf.math.is_nan(epoch_loss_avg.result()):
@@ -188,7 +193,7 @@ def train(model, n_components, name, save_dir):
       epoch_loss_avg = tf.keras.metrics.Mean()
     if it >= num_iterations:
       break
-    it+=1'''
+    it+=1
 
   new_maf, _ = build_model(model)
 
@@ -203,10 +208,10 @@ def train(model, n_components, name, save_dir):
                                                   max_to_keep=20)
   save_path = checkpoint_manager.save()
 
-  '''plt.plot(train_loss_results)
+  plt.plot(train_loss_results)
   plt.savefig(f'{save_dir}/loss_{name}.png',
               format="png")
-  plt.close()'''
+  plt.close()
 
   plot_heatmap_2d(new_maf, matching_bijector=prior_matching_bijector,
                   mesh_count=500,
@@ -220,7 +225,7 @@ def train(model, n_components, name, save_dir):
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
   results = {
-    #'loss': train_loss_results,
+    'loss': train_loss_results,
     'loss_eval': eval_log_prob,
   }
 
