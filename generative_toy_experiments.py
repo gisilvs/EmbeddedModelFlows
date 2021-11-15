@@ -20,7 +20,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(5e5)
+num_iterations = int(5e2)
 n_dims = 2
 
 def clear_folder(folder):
