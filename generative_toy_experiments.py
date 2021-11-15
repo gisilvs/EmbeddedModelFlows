@@ -224,7 +224,7 @@ def train(model, n_components, name, save_dir):
     'loss_eval': eval_log_prob,
   }
 
-  if model == 'sandwich':
+  if model == 'sandwich' or model == 'sandwich_splines':
     for v in new_maf.trainable_variables:
       if 'locs' in v.name:
         locs = tf.convert_to_tensor(v)
@@ -233,20 +233,17 @@ def train(model, n_components, name, save_dir):
       elif 'component_logits' in v.name:
         component_logits = tf.convert_to_tensor(v)
 
-    fixed_maf, _ = build_model('sandwich', trainable_mixture=False,
+    fixed_maf, _ = build_model(model, trainable_mixture=False,
                                component_logits=component_logits, locs=locs,
                                scales=scales)
 
-    if not os.path.exists(f'{save_dir}/bijector_steps'):
-      os.makedirs(f'{save_dir}/bijector_steps')
-
-    results['samples'] = sample(new_maf, fixed_maf, int(1e3))
+    # results['samples'] = sample(new_maf, fixed_maf, int(1e3))
   with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
 datasets = ['8gaussians','checkerboard']
-models = ['np_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+models = ['sandwich_splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
 
 main_dir = '2d_toy_results_0'
 if not os.path.isdir(main_dir):
