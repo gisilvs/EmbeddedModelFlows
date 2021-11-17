@@ -372,7 +372,7 @@ class NeuralSplineFlow(tfb.Bijector):
     return neg_for_log_det'''
 
 def make_splines(input_dim, number_of_bins, nn_layers,
-                 b_interval, layers):
+                 b_interval, layers, use_bn=False):
   permutation = tf.cast(np.concatenate(
     (np.arange(input_dim / 2, input_dim), np.arange(0, input_dim / 2))),
                         tf.int32)
@@ -381,19 +381,23 @@ def make_splines(input_dim, number_of_bins, nn_layers,
     NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
                      number_of_bins=number_of_bins, nn_layers=nn_layers,
                      b_interval=[b_interval for _ in range(input_dim)]))
+  if use_bn:
+    bijector_chain.append(tfb.BatchNormalization())
   for i in range(layers-1):
     bijector_chain.append(tfb.Permute(permutation))
     bijector_chain.append(
       NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
                        number_of_bins=number_of_bins, nn_layers=nn_layers,
                        b_interval=[b_interval for _ in range(input_dim)]))
+    if use_bn:
+      bijector_chain.append(tfb.BatchNormalization())
   return bijector_chain
 
 def build_iaf_bijector(num_hidden_units,
                        ndims,
                        activation_fn,
                        dtype,
-                       num_flow_layers=2, is_iaf=True, swap=True):
+                       num_flow_layers=2, is_iaf=True, swap=True, use_bn=False):
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
   def make_maf():
@@ -415,14 +419,14 @@ def build_iaf_bijector(num_hidden_units,
     return maf
 
   iaf_bijector = [make_maf()]
-  '''if not is_iaf:
-    iaf_bijector.append(tfb.BatchNormalization())'''
+  if use_bn:
+    iaf_bijector.append(tfb.BatchNormalization())
   for _ in range(num_flow_layers - 1):
     if swap:
       iaf_bijector.extend([make_swap()])
     iaf_bijector.extend([make_maf()])
-    '''if not is_iaf:
-      iaf_bijector.append(tfb.BatchNormalization())'''
+    if use_bn:
+      iaf_bijector.append(tfb.BatchNormalization())
 
   return iaf_bijector
 

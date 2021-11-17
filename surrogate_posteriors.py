@@ -203,10 +203,9 @@ def _normalizing_flows(prior, flow_name, flow_params):
     flow_bijector = build_real_nvp_bijector(**flow_params)
   if flow_name == 'splines':
     flow_bijector = make_splines(**flow_params)
-
   nf_surrogate_posterior = tfd.TransformedDistribution(
     base_distribution,
-    bijector=tfb.Chain(prior_matching_bijectors +
+    bijector=tfb.Chain(prior_matching_bijectors +# scale_bijector +
                        flow_bijector
                        ))
 
@@ -222,7 +221,8 @@ def _normalizing_program(prior, backbone_name, flow_params):
     bijector=bijector
   )
 
-def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
+def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1,
+                                      use_bn=False):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
@@ -241,13 +241,27 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
   normalizing_program = AutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
-  bijector = tfb.Chain([prior_matching_bijectors,
-                        flow_bijector_post[0],
-                        tfb.Chain([tfb.Invert(prior_matching_bijectors),
-                        normalizing_program,
-                        prior_matching_bijectors]),
-                        make_swap(),
-                        flow_bijector_pre[0]])
+  if use_bn:
+    bijector = tfb.Chain([prior_matching_bijectors,
+                          flow_bijector_post[0],
+                          tfb.BatchNormalization(),
+                          tfb.Chain([tfb.Invert(prior_matching_bijectors),
+                          normalizing_program,
+                          prior_matching_bijectors]),
+                          make_swap(),
+                          tfb.BatchNormalization(),
+                          flow_bijector_pre[0],
+                          tfb.BatchNormalization()
+                          ])
+  else:
+    bijector = tfb.Chain([prior_matching_bijectors,
+                          flow_bijector_post[0],
+                          tfb.Chain([tfb.Invert(prior_matching_bijectors),
+                                     normalizing_program,
+                                     prior_matching_bijectors]),
+                          make_swap(),
+                          flow_bijector_pre[0]
+                          ])
 
   backbone_surrogate_posterior = tfd.TransformedDistribution(
     distribution=base_distribution,
@@ -256,33 +270,36 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1):
 
   return backbone_surrogate_posterior
 
-def _sandwich_splines_normalizing_program(prior, num_layers_per_flow=1):
+def _sandwich_splines_normalizing_program(prior, flow_params):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
     prior)
 
   base_distribution = tfd.Sample(
     tfd.Normal(tf.zeros([], dtype=dtype), 1.), sample_shape=[ndims])
 
-  flow_params = {
-    'layers': 3,
-    'number_of_bins': 32,
-    'input_dim': 2,
-    'nn_layers': [32, 32],
-    'b_interval': 4
-  }
   flow_bijector_pre = make_splines(**flow_params)
   flow_bijector_post = make_splines(**flow_params)
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
   normalizing_program = AutoFromNormal(prior)
   prior_matching_bijectors = tfb.Chain(prior_matching_bijectors)
 
-  bijector = tfb.Chain([prior_matching_bijectors,
-                        flow_bijector_post[0],
-                        tfb.Chain([tfb.Invert(prior_matching_bijectors),
-                        normalizing_program,
-                        prior_matching_bijectors]),
-                        make_swap(),
-                        flow_bijector_pre[0]])
+  if flow_params['use_bn']:
+    bijector = tfb.Chain([prior_matching_bijectors,
+                          tfb.Chain(flow_bijector_post),
+                          tfb.Chain([tfb.Invert(prior_matching_bijectors),
+                                     normalizing_program,
+                                     prior_matching_bijectors]),
+                          make_swap(),
+                          tfb.BatchNormalization(),
+                          tfb.Chain(flow_bijector_pre)])
+  else:
+    bijector = tfb.Chain([prior_matching_bijectors,
+                          tfb.Chain(flow_bijector_post),
+                          tfb.Chain([tfb.Invert(prior_matching_bijectors),
+                          normalizing_program,
+                          prior_matching_bijectors]),
+                          make_swap(),
+                          tfb.Chain(flow_bijector_pre)])
 
   backbone_surrogate_posterior = tfd.TransformedDistribution(
     distribution=base_distribution,
