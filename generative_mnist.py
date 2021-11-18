@@ -9,7 +9,7 @@ import numpy as np
 
 import surrogate_posteriors
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -118,13 +118,13 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_splines_normalizing_program(
         prior_structure, flow_params=flow_params)
 
-    elif model_name in ['splines', 'slpines_bn']:
+    elif model_name in ['splines', 'splines_bn']:
       flow_params = {
         'layers': 6,
         'number_of_bins': 32,
         'input_dim': 784,
         'nn_layers': [32,32],
-        'b_interval': 15,
+        'b_interval': 3,
         'use_bn': use_bn
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
@@ -144,7 +144,7 @@ def train(model, n_components, name, save_dir):
                                                          backnone_name='splines',
                                                          flow_params=flow_params)
       # maf.sample(1)
-    maf.log_prob(prior_structure.sample(2))
+    #maf.log_prob(prior_structure.sample(100))
 
     return maf, prior_matching_bijector
 
@@ -215,7 +215,7 @@ def train(model, n_components, name, save_dir):
     for x in train_dataset:
       # Optimize the model
       loss_value = optimizer_step(maf, x)
-      # print(loss_value)
+      #print(loss_value)
       epoch_loss_avg.update_state(loss_value)
     train_loss_results.append(epoch_loss_avg.result())
     if epoch % 100 == 0:
@@ -272,7 +272,7 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-models = ['maf_bn']#, 'np_maf', 'sandwich',
+models = ['splines_bn']#, 'np_maf', 'sandwich',
 # 'maf',
 # 'maf3']
 
@@ -293,6 +293,6 @@ for run in n_runs:
     elif model == 'splines' or model == 'splines_bn':
       train(model, 20, model, save_dir=f'{main_dir}/run_{run}')
     else:
-      for n_components in [100]:
+      for n_components in [10]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/run_{run}')

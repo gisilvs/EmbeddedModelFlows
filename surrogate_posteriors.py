@@ -1,10 +1,13 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, make_splines
+from flows_bijectors import build_iaf_bijector, build_real_nvp_bijector, \
+  make_splines, ActivationNormalization
 from gate_bijector import GateBijector, GateBijectorForNormal
 from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
 from tensorflow_probability.python.internal import prefer_static as ps
+
+import numpy as np
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -13,7 +16,6 @@ tfp_util = tfp.util
 
 # Global dict (DANGEROUS)
 residual_fraction_vars = {}
-
 
 def get_residual_fraction(dist):
   dist_name = dist.parameters['name']
@@ -244,14 +246,14 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1,
   if use_bn:
     bijector = tfb.Chain([prior_matching_bijectors,
                           flow_bijector_post[0],
-                          tfb.BatchNormalization(),
+                          ActivationNormalization(784),
                           tfb.Chain([tfb.Invert(prior_matching_bijectors),
                           normalizing_program,
                           prior_matching_bijectors]),
                           make_swap(),
-                          tfb.BatchNormalization(),
+                          ActivationNormalization(784),
                           flow_bijector_pre[0],
-                          tfb.BatchNormalization()
+                          ActivationNormalization(784)
                           ])
   else:
     bijector = tfb.Chain([prior_matching_bijectors,
@@ -290,7 +292,7 @@ def _sandwich_splines_normalizing_program(prior, flow_params):
                                      normalizing_program,
                                      prior_matching_bijectors]),
                           make_swap(),
-                          tfb.BatchNormalization(),
+                          ActivationNormalization(784),
                           tfb.Chain(flow_bijector_pre)])
   else:
     bijector = tfb.Chain([prior_matching_bijectors,
