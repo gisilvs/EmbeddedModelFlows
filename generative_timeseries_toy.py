@@ -1,11 +1,13 @@
 import os
 import shutil
+import time
 import pickle
 import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
 import surrogate_posteriors
 
+from tensorflow_probability.python.internal import prefer_static as ps
 from toy_data import generate_2d_data
 import surrogate_posteriors
 from plot_utils import plot_heatmap_2d, plot_samples
@@ -13,7 +15,7 @@ from plot_utils import plot_heatmap_2d, plot_samples
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -21,7 +23,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(1e5)
+num_iterations = int(4e5)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -88,6 +90,12 @@ def time_series_gen(batch_size, dataset_name):
   if dataset_name == 'lorenz':
     while True:
       yield tf.reshape(tf.transpose(tf.convert_to_tensor(lorenz_system.sample(batch_size)),[1,0,2]), [batch_size, -1])
+  if dataset_name == 'lorenz_scaled':
+    while True:
+      samples = tf.convert_to_tensor(lorenz_system.sample(batch_size))
+      std = tf.math.reduce_std(samples, axis=1)
+      samples = samples / tf.expand_dims(std, 1)
+      yield tf.reshape(tf.transpose(samples,[1,0,2]), [batch_size, -1])
   if dataset_name == 'van_der_pol':
     while True:
       yield tf.reshape(tf.transpose(tf.convert_to_tensor(van_der_pol.sample(batch_size)),[1,0,2]), [batch_size, -1])
@@ -108,7 +116,7 @@ def train(model, name, structure, dataset_name, save_dir):
     optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
 
-  if dataset_name == 'lorenz':
+  if dataset_name == 'lorenz' or dataset_name=='lorenz_scaled':
     time_step_dim = 3
     series_len = 30
 
@@ -175,27 +183,27 @@ def train(model, name, structure, dataset_name, save_dir):
       flow_params = {
         'layers': 6,
         'number_of_bins': 32,
-        'input_dim': 90,
+        'input_dim': series_len*time_step_dim,
         'nn_layers': [32,32],
-        'b_interval': 30
+        'b_interval': 10
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='splines',
                                                          flow_params=flow_params)
-      maf.sample(1)
+      maf.sample(2)
     elif model_name == 'np_splines':
       flow_params = {
         'layers': 6,
         'number_of_bins': 32,
-        'input_dim': 90,
+        'input_dim': series_len*time_step_dim,
         'nn_layers': [32, 32],
-        'b_interval': 30
+        'b_interval': 10
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='gated_normalizing_program',
                                                          backnone_name='splines',
                                                          flow_params=flow_params)
-      maf.sample(1)
+      maf.sample(2)
     elif model_name == 'bottom':
       maf = surrogate_posteriors.bottom_np_maf(prior_structure)
     elif model_name == 'sandwich':
@@ -207,10 +215,22 @@ def train(model, name, structure, dataset_name, save_dir):
     return maf, prior_matching_bijector
 
   maf, prior_matching_bijector = build_model(model)
+  if 'splines' == model and dataset_name=='lorenz':
+    scale_bijector = tfb.Scale(tf.convert_to_tensor([7.5674453 for _ in range(
+        30)] + [8.48064 for _ in range(
+        30)] + [15.134891 for _ in range(
+        30)]))
+    maf = tfd.TransformedDistribution(
+      distribution=maf,
+      bijector = tfb.Chain([prior_matching_bijector, scale_bijector,
+                            tfb.Invert(prior_matching_bijector)])
+    )
 
 
   dataset = tf.data.Dataset.from_generator(functools.partial(time_series_gen, batch_size=int(100), dataset_name=dataset_name),
-                                             output_types=tf.float32).map(prior_matching_bijector).prefetch(tf.data.AUTOTUNE)
+                                             output_types=tf.float32)\
+    .map(prior_matching_bijector, num_parallel_calls=tf.data.AUTOTUNE)\
+    .prefetch(tf.data.AUTOTUNE)
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -236,19 +256,31 @@ def train(model, name, structure, dataset_name, save_dir):
       save_path = checkpoint_manager.save()
     elif it % 100 == 0:
       train_loss_results.append(epoch_loss_avg.result())
-      #print(train_loss_results[-1])
       epoch_loss_avg = tf.keras.metrics.Mean()
       if tf.math.is_nan(train_loss_results[-1]):
         break
       else:
         save_path = checkpoint_manager.save()
 
+    if it % 1000 == 0 and it > 0:
+      print(train_loss_results[-1])
+      print(it)
     if it >= num_iterations:
       break
     it += 1
 
 
   new_maf, _ = build_model(model)
+  if 'splines' == model and dataset_name=='lorenz':
+    scale_bijector = tfb.Scale(tf.convert_to_tensor([7.5674453 for _ in range(
+        30)] + [8.48064 for _ in range(
+        30)] + [15.134891 for _ in range(
+        30)]))
+    new_maf = tfd.TransformedDistribution(
+      distribution=new_maf,
+      bijector = tfb.Chain([prior_matching_bijector, scale_bijector,
+                            tfb.Invert(prior_matching_bijector)])
+    )
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
@@ -281,14 +313,14 @@ def train(model, name, structure, dataset_name, save_dir):
   print(f'{name} done!')
 
 # maf_swap means that no swap is done
-models = ['np_splines']
+models = ['np_splines', 'splines', 'bottom']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
 datasets = ['lorenz']
-n_runs = [0]
+n_runs = [0, 1, 2, 3, 4]
 
 for run in n_runs:
 
