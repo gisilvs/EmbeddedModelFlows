@@ -14,12 +14,15 @@ tfkl = tfk.layers
 class ActivationNormalization(tfb.Bijector):
   """Bijector to implement Activation Normalization (ActNorm)."""
 
-  def __init__(self, nchan, dtype=tf.float32, validate_args=False, name=None):
+  def __init__(self, nchan, is_image=True, dtype=tf.float32,
+               validate_args=False, name=None):
     parameters = dict(locals())
 
+    self.is_image=is_image
     self._initialized = tf.Variable(False, trainable=False)
     self._m = tf.Variable(tf.zeros(nchan, dtype))
-    self._s = tfp.util.TransformedVariable(tf.ones(nchan, dtype), tfb.Exp())
+    self._s = tfp.util.TransformedVariable(tf.ones(nchan, dtype),
+                                           tfb.Softplus())
     self._bijector = tfb.Invert(
         tfb.Chain([
             tfb.Scale(self._s),
@@ -49,14 +52,22 @@ class ActivationNormalization(tfb.Bijector):
 
   def _maybe_init(self, inputs, inverse):
     """Initialize if not already initialized."""
-
+    is_image = self.is_image
     def _init():
       """Build the data-dependent initialization."""
-      axis = ps.range(ps.rank(inputs) - 1)
-      m = tf.math.reduce_mean(inputs, axis=axis)
-      s = (
-          tf.math.reduce_std(inputs, axis=axis) +
-          10. * np.finfo(dtype_util.as_numpy_dtype(inputs.dtype)).eps)
+      if is_image:
+        axis = ps.range(ps.rank(inputs) - 1)
+        m = tf.math.reduce_mean(inputs, axis=axis)
+        s = (
+            tf.math.reduce_std(inputs, axis=axis) +
+            10. * np.finfo(dtype_util.as_numpy_dtype(inputs.dtype)).eps)
+      else:
+        axis = ps.range(ps.rank(inputs))
+        m = tf.reshape(tf.math.reduce_mean(inputs, axis=axis), [1])
+        s = tf.reshape((
+            tf.math.reduce_std(inputs, axis=axis) +
+            10. * np.finfo(dtype_util.as_numpy_dtype(inputs.dtype)).eps), [1])
+
       if inverse:
         s = 1 / s
         m = -m
@@ -124,7 +135,7 @@ class NeuralSplineFlow(tfb.Bijector):
     output = self.nn(x)
     self.min_bin_width = 1e-3  # maximum number of bins 1/1e-3 then...
     self.nn_model = tfk.Model(x, output, name="nn")
-    self.simetric_interval = simetric_interval
+    self.simetric_interval  = simetric_interval
 
   # some calculation could be done in one-line of code but it was preferred to explicitly write them
   # for easy debugging purposes during the development and also to give an understanding of the implementations of the terms in the paper
@@ -454,7 +465,8 @@ def build_iaf_bijector(num_hidden_units,
                        ndims,
                        activation_fn,
                        dtype,
-                       num_flow_layers=2, is_iaf=True, swap=True, use_bn=False):
+                       num_flow_layers=2, is_iaf=True, swap=True,
+                       use_bn=False):
   make_swap = lambda: tfb.Permute(ps.range(ndims - 1, -1, -1))
 
   def make_maf():

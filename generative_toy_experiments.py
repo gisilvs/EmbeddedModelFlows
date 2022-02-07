@@ -14,6 +14,8 @@ from plot_utils import plot_heatmap_2d, plot_samples
 import numpy as np
 import matplotlib.pyplot as plt
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 tfk = tf.keras
@@ -114,8 +116,16 @@ def train(model, n_components, name, save_dir):
         prior_structure)
 
     elif model_name == 'sandwich_splines':
+      flow_params = {
+        'layers': 3,
+        'number_of_bins': 32,
+        'input_dim': 2,
+        'nn_layers': [32, 32],
+        'b_interval': 4,
+        'use_bn': False
+      }
       maf = surrogate_posteriors._sandwich_splines_normalizing_program(
-        prior_structure)
+        prior_structure, flow_params)
 
     elif model_name == 'splines':
       flow_params = {
@@ -123,7 +133,8 @@ def train(model, n_components, name, save_dir):
         'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32,32],
-        'b_interval': 4
+        'b_interval': 4,
+        'use_bn': False
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='splines',
@@ -134,7 +145,8 @@ def train(model, n_components, name, save_dir):
         'number_of_bins': 32,
         'input_dim': 2,
         'nn_layers': [32, 32],
-        'b_interval': 4
+        'b_interval': 4,
+        'use_bn': False
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
                                                          surrogate_posterior_name='normalizing_program',
@@ -154,6 +166,14 @@ def train(model, n_components, name, save_dir):
     return loss
 
   maf, prior_matching_bijector = build_model(model)
+
+  if 'splines'==model and data=='checkerboard':
+    scale_bijector = tfb.Scale(tf.convert_to_tensor([4.,4.]))
+    maf = tfd.TransformedDistribution(
+      distribution=maf,
+      bijector = tfb.Chain([prior_matching_bijector, scale_bijector,
+                            tfb.Invert(prior_matching_bijector)])
+    )
 
   dataset = tf.data.Dataset.from_generator(functools.partial(generate_2d_data, data=data, batch_size=int(100)),
                                            output_types=tf.float32)
@@ -196,6 +216,13 @@ def train(model, n_components, name, save_dir):
     it+=1
 
   new_maf, _ = build_model(model)
+  if 'splines'==model and data=='checkerboard':
+    scale_bijector = tfb.Scale(tf.convert_to_tensor([4.,4.]))
+    new_maf = tfd.TransformedDistribution(
+      distribution=new_maf,
+      bijector = tfb.Chain([prior_matching_bijector, scale_bijector,
+                            tfb.Invert(prior_matching_bijector)])
+    )
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
 
@@ -229,31 +256,22 @@ def train(model, n_components, name, save_dir):
     'loss_eval': eval_log_prob,
   }
 
-  '''if model == 'sandwich' or model == 'sandwich_splines':
-    for v in new_maf.trainable_variables:
-      if 'locs' in v.name:
-        locs = tf.convert_to_tensor(v)
-      elif 'scales' in v.name:
-        scales = tf.convert_to_tensor(v)
-      elif 'component_logits' in v.name:
-        component_logits = tf.convert_to_tensor(v)
-
-    fixed_maf, _ = build_model(model, trainable_mixture=False,
-                               component_logits=component_logits, locs=locs,
-                               scales=scales)'''
-
     # results['samples'] = sample(new_maf, fixed_maf, int(1e3))
   with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-datasets = ['8gaussians','checkerboard']
-models = ['splines']#, 'np_maf', 'sandwich', 'maf', 'maf3']
+datasets = ['8gaussians', 'checkerboard']
+models = ['sandwich_splines']
+# 'np_maf',
+# 'sandwich',
+# 'maf',
+# 'maf3']
 
-main_dir = '2d_toy_results_0'
+main_dir = '2d_toy_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [0, 1, 2, 3, 4]
+n_runs = [1,2,3,4]
 
 for run in n_runs:
   for data in datasets:

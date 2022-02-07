@@ -145,7 +145,19 @@ def _get_prior_matching_bijectors_and_event_dims(prior):
 
 
 def _mean_field(prior):
-  return tfe.vi.build_asvi_surrogate_posterior(prior, mean_field=True)
+  event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = _get_prior_matching_bijectors_and_event_dims(
+    prior)
+  base_dist = tfd.Independent(tfd.Normal(loc=tf.Variable(tf.reshape(
+    [0. for _ in
+     range(int(tf.reduce_sum(flat_event_size)))], -1)),
+                             scale=tfp.util.TransformedVariable(tf.reshape(
+                               [1.
+                                for _ in
+                                range(int(tf.reduce_sum(flat_event_size)))],
+                               -1), bijector=tfb.Softplus())), 1)
+  return tfd.TransformedDistribution(
+            distribution=base_dist,
+            bijector=tfb.Chain(prior_matching_bijectors))
 
 
 def _multivariate_normal(prior):
@@ -246,14 +258,17 @@ def _sandwich_maf_normalizing_program(prior, num_layers_per_flow=1,
   if use_bn:
     bijector = tfb.Chain([prior_matching_bijectors,
                           flow_bijector_post[0],
-                          ActivationNormalization(784),
+                          tfb.Invert(ActivationNormalization(1,
+                                                             is_image=False)),
                           tfb.Chain([tfb.Invert(prior_matching_bijectors),
                           normalizing_program,
                           prior_matching_bijectors]),
                           make_swap(),
-                          ActivationNormalization(784),
+                          tfb.Invert(ActivationNormalization(1,
+                                                             is_image=False)),
                           flow_bijector_pre[0],
-                          ActivationNormalization(784)
+                          tfb.Invert(ActivationNormalization(1,
+                                                             is_image=False))
                           ])
   else:
     bijector = tfb.Chain([prior_matching_bijectors,
@@ -288,11 +303,14 @@ def _sandwich_splines_normalizing_program(prior, flow_params):
   if flow_params['use_bn']:
     bijector = tfb.Chain([prior_matching_bijectors,
                           tfb.Chain(flow_bijector_post),
+                          tfb.Invert(ActivationNormalization(1,
+                                                             is_image=False)),
                           tfb.Chain([tfb.Invert(prior_matching_bijectors),
                                      normalizing_program,
                                      prior_matching_bijectors]),
                           make_swap(),
-                          ActivationNormalization(784),
+                          tfb.Invert(ActivationNormalization(1,
+                                                             is_image=False)),
                           tfb.Chain(flow_bijector_pre)])
   else:
     bijector = tfb.Chain([prior_matching_bijectors,

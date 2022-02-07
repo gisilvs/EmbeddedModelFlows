@@ -42,21 +42,42 @@ def ornstein_uhlenbeck():
   for t in range(1, 30):
     new = yield tfd.Normal(loc=a*new, scale=.5)
 
+@tfd.JointDistributionCoroutine
+def van_der_pol():
+  mul = 4
+  innovation_noise = .1
+  mu = 1.
+  step_size = 0.05
+  loc = yield Root(tfd.Sample(tfd.Normal(0., 1., name='x_0'), sample_shape=2))
+  for t in range(1, 30*mul):
+    x, y = tf.unstack(loc, axis=-1)
+    dx = y
+    dy = mu * (1-x**2)*y - x
+    delta = tf.stack([dx, dy], axis=-1)
+    loc = yield tfd.Independent(
+      tfd.Normal(loc + step_size * delta,
+                tf.sqrt(step_size) * innovation_noise, name=f'x_{t}'),
+      reinterpreted_batch_ndims=1)
+
 rc = {
     "text.usetex": True,
     "font.family": "sans-serif",
     "font.sans-serif": ["Computer Modern Sans Serif"]}
 plt.rcParams.update(rc)
-#plt.rcParams["figure.figsize"] = (9,3)
+plt.rcParams["figure.figsize"] = (9,3)
 
-models = ['np_maf_continuity', 'np_maf_smoothness', 'maf','maf3', 'bottom']
-data = ['brownian', 'ornstein', 'lorenz']
+models = ['splines', 'np_splines_continuity']
+data = ['lorenz']#['brownian', 'ornstein', 'lorenz']
 model = 'np_maf_stock'
 run = 'run_0'
 d_names = {
   'brownian': 'Brownian motion',
   'ornstein': 'Ornstein-Uhlenbeck process',
-  'lorenz': 'Lorenz system'
+  'lorenz': 'Lorenz system',
+  'van_der_pol': 'Van der Pol equations',
+  van_der_pol: 'Van der Pol equations',
+  'lorenz_scaled': 'Lorenz system',
+  lorenz_system: 'Lorenz_System_scaled'
 }
 
 '''d_names = {
@@ -70,14 +91,18 @@ names = {
   'bottom': 'B-MAF',
   'np_maf_continuity': 'GEMF-T(c)',
   'np_maf_smoothness': 'GEMF-T(s)',
-  'maf3': 'MAF-L'
+  'maf3': 'MAF-L',
+  'splines': 'NSF',
+  'np_splines_continuity': 'NSF -GEMF-T(c)'
 }
 
 '''generators=[lorenz_system]
 for g in generators:
   samples = tf.convert_to_tensor(g.sample(10))
+  std = tf.math.reduce_std(samples, axis=1)
+  samples = samples / tf.expand_dims(std, 1)
   plt.plot(samples[:, :10, 0], alpha=0.7, linewidth=1)
-  plt.title(f'{d_names[g]} - Ground truth')
+  #plt.title('Lorenz_scaled_Ground_truth')
   plt.savefig(f'time_series_results/samples_{d_names[g]}_gt.png')
   plt.close()'''
 
@@ -85,18 +110,18 @@ for d in data:
   for model in models:
     with open(f'time_series_results/{run}/{d}/{model}.pickle', 'rb') as handle:
       results = pickle.load(handle)
-    plt.plot(results['loss'], label=names[model])
+    '''plt.plot(results['loss'], label=names[model])
   if d == 'lorenz':
     plt.ylim(bottom=-300, top=800)
   plt.title(d_names[d])
   plt.legend()
   plt.savefig(f'time_series_results/loss_{d}.png')
-  plt.close()
-  '''samples = results['samples']
-  plt.plot(samples[:, :10, 0], alpha=0.7, linewidth=1)
-  plt.title(f'{d_names[d]} - {names[model]}')
-  plt.savefig(f'time_series_results/samples_{d}_{model}.png')
   plt.close()'''
+    samples = results['samples']
+    plt.plot(samples[:, :10, 0], alpha=0.7, linewidth=1)
+    plt.title(f'{d_names[d]} - {names[model]}')
+    plt.savefig(f'time_series_results/samples_{d}_{model}.png')
+    plt.close()
 
 '''run = 0
 if model == 'ground_truth':

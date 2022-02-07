@@ -14,17 +14,20 @@ import numpy as np
        'normalizing_program_large_iaf',
        'normalizing_program_highway_flow']'''
 
-sps = ['mean_field',
-       'multivariate_normal',
-       'asvi',
-       'iaf',
+sps = [
+#'gated_normalizing_program_iaf',
+  #'mean_field',
+       #'multivariate_normal',
+      #'asvi',
+       # 'iaf',
        'normalizing_program_mean_field',
-       'normalizing_program_multivariate_normal',
-       'normalizing_program_iaf',
+  #'normalizing_program_iaf',
+  #'normalizing_program_multivariate_normal',
+
        #'normalizing_program_highway_flow',
        'gated_normalizing_program_mean_field',
-       'gated_normalizing_program_multivariate_normal',
-       'gated_normalizing_program_iaf'
+       #'gated_normalizing_program_multivariate_normal',
+  #'gated_normalizing_program_iaf',
        ]
 
 root_dir='results'
@@ -44,8 +47,13 @@ for model in os.listdir(root_dir):
     surrogate_posterior_dir = f'{model_dir}/{surrogate_posterior}'
     reps = []
     for rep in os.listdir(surrogate_posterior_dir):
-      with open(f'{surrogate_posterior_dir}/{rep}', 'rb') as handle:
-        reps.append(pickle.load(handle))
+      if 'checkpoints' in rep:
+        continue
+      try:
+        with open(f'{surrogate_posterior_dir}/{rep}', 'rb') as handle:
+          reps.append(pickle.load(handle))
+      except:
+        a = 0
 
     df = pd.DataFrame(reps)
     results_dict[model][surrogate_posterior]['elbo']= df.elbo
@@ -54,7 +62,8 @@ for model in os.listdir(root_dir):
 for k, models in results_dict.items():
     print(f'{k}')
 
-    bold_idx = np.argmin([models[s]["elbo"].mean() for s in sps])
+    #bold_idx = np.argmin([models[s]["elbo"].mean() for s in sps])
+    bold_idx = 100
     print("& -ELBO")
     for i, surrogate_posterior in enumerate(sps):
       f = ''
@@ -64,7 +73,8 @@ for k, models in results_dict.items():
         f += f' & ${models[surrogate_posterior]["elbo"].mean():.3f} \\pm {models[surrogate_posterior]["elbo"].sem():.3f}$'
       print(f)
 
-    bold_idx = np.argmax([models[s]["fkl"].mean() for s in sps])
+    #bold_idx = np.argmax([models[s]["fkl"].mean() for s in sps])
+    bold_idx=100
     print("& FKL")
     for i, surrogate_posterior in enumerate(sps):
 

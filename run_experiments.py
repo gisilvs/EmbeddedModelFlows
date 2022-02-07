@@ -11,7 +11,7 @@ from models import get_model
 import surrogate_posteriors
 from surrogate_posteriors import get_surrogate_posterior
 
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 learning_rates = {'mean_field': 1e-3,
@@ -101,7 +101,7 @@ model_names = [
 
 surrogate_posterior_names = [# 'mean_field',
                              #'multivariate_normal',
-                             # 'asvi',
+                             #'asvi',
                              #'iaf',
                              'normalizing_program',
                              'gated_normalizing_program'
@@ -115,6 +115,7 @@ backbone_names = ['mean_field',
 
 
 seeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+#seeds = [10]
 #seeds = [10, 30, 50, 70, 90]
 
 for i in range(10):

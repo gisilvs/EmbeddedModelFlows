@@ -12,7 +12,12 @@ names = {
   'sandwich': 'GEMF-M',
   'c100_sandwich': 'GEMF-M',
   'np_maf_smoothness': 'GEMF-T(s)',
-  'bottom': 'B-MAF'
+  'np_maf_continuity': 'GEMF-T(c)',
+  'bottom': 'B-MAF',
+  'splines': 'NSF',
+  'c100_np_splines': 'NSF-EMF-T',
+  'c100_sandwich_splines': 'NSF-EMF-M',
+  'np_splines_continuity': 'NSF-EMF-T(c)',
 }
 
 d_names = {
@@ -21,15 +26,30 @@ d_names = {
   'lorenz': 'Lorenz system'
 }
 
-base_dir = 'hierarchical_results'
+base_dir = 'time_series_results'
+
+if base_dir == 'mnist':
+  datasets = ['mnist']
+  models = [
+    'c100_np_maf',
+    'c100_sandwich_bn',
+    'c100_np_splines',
+    'c100_sandwich_splines_bn',
+    'maf',
+    'maf3',
+    'splines'
+  ]#
+  # 'c100_sandwich', 'maf_bn',
+            #'splines_bn', 'c100_np_maf_bn', 'c10_np_maf']
 
 if base_dir == '2d_toy_results':
-  datasets = ['8gaussians', 'checkerboard']
-  models = ['c100_np_maf', 'c100_sandwich', 'maf', 'maf3']
+  datasets = ['checkerboard', '8gaussians']
+  models = ['c100_np_splines','c100_sandwich_splines','splines']
 
 elif base_dir == 'time_series_results':
-  datasets = ['brownian', 'ornstein', 'lorenz']
-  models = ['np_maf_continuity', 'np_maf_smoothness', 'maf','maf3','bottom']
+  datasets = ['brownian', 'ornstein', 'lorenz', 'van_der_pol'] # , 'ornstein']
+  models = ['np_maf_continuity', 'np_splines_continuity','maf', 'maf3','splines'
+            ,'bottom']
 
 elif base_dir == 'hierarchical_results':
   datasets = ['digits']
@@ -46,23 +66,29 @@ for run in os.listdir(base_dir):
       for dataset in datasets:
         for model in models:
           try:
-            with open(f'{base_dir}/{run}/{dataset}/{model}.pickle', 'rb') as handle:
+            #with open(f'{base_dir}/{run}/{dataset}/{model}.pickle', 'rb') as
+            # handle:
+            if base_dir =='mnist':
+              full_path = f'{base_dir}/{run}/{model}.pickle'
+            else:
+              full_path = f'{base_dir}/{run}/{dataset}/{model}.pickle'
+            with open(full_path, 'rb') as \
+                handle:
               res = pickle.load(handle)
+              results[dataset][model].append(res['loss_eval'])
           except:
             a = 0
-          # plt.plot(res['loss'], label=names[model])
-          results[dataset][model].append(res['loss_eval'])
-        '''if dataset == 'lorenz':
-          plt.ylim(bottom=-300, top=800)
-        plt.title('Digits')
+          '''plt.plot(res['loss'], label=names[model], alpha=0.9)
+        # if dataset == 'lorenz':
+        plt.ylim(bottom=-250, top=100)
+        plt.title(f'{d_names[dataset]}')
         plt.legend()
-        plt.savefig(f'hierarchical_results/loss_{dataset}.png')
+        plt.savefig(f'{base_dir}/loss_{dataset}.png')
         plt.close()'''
 
 
 for d, dataset in results.items():
     print(f'{d}')
-
     bold_idx = np.argmin([np.mean(dataset[m]) for m in models])
     print("& -LOGP")
     for i, model in enumerate(models):

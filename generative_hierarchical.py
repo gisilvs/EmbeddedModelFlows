@@ -6,9 +6,13 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from sklearn import datasets
 import surrogate_posteriors
-
+from tensorflow_probability.python.internal import prefer_static as ps
+import time
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 def iris_generator():
   iris = datasets.load_iris()
@@ -38,7 +42,8 @@ def digits_generator():
   digits = datasets.load_digits()
   data = tf.convert_to_tensor(digits.data, dtype=tf.float32)
   data = (data + tf.random.uniform(tf.shape(data), minval=0., maxval=1., seed=42)) / 17.
-  data = tf.math.log(lambd + (1 - 2 * lambd) * data)
+  data = lambd + (1 - 2 * lambd) * data
+  data = tfb.Invert(tfb.Sigmoid())(data)  # logit
   labels = digits.target
   class_dict = {}
   for label in range(10):
@@ -120,20 +125,65 @@ def train(model, name, dataset_name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure)
 
-    maf.log_prob(prior_structure.sample(1))
+    elif model_name in ['sandwich_splines', 'sandwich_splines_bn']:
+      flow_params = {
+        'layers': 3,
+        'number_of_bins': 32,
+        'input_dim': 40,
+        'nn_layers': [32, 32],
+        'b_interval': 10,
+        'use_bn': False
+      }
+      maf = surrogate_posteriors._sandwich_splines_normalizing_program(
+        prior_structure, flow_params=flow_params)
+
+    elif model_name in ['splines', 'splines_bn']:
+      flow_params = {
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 40,
+        'nn_layers': [32,32],
+        'b_interval': 10,
+        'use_bn': False
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='splines',
+                                                         flow_params=flow_params)
+    elif model_name in ['np_splines', 'np_splines_bn']:
+      flow_params = {
+        'layers': 6,
+        'number_of_bins': 32,
+        'input_dim': 40,
+        'nn_layers': [32, 32],
+        'b_interval': 10,
+        'use_bn': False
+      }
+      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
+                                                         surrogate_posterior_name='normalizing_program',
+                                                         backnone_name='splines',
+                                                         flow_params=flow_params)
+
+
+    maf.log_prob(prior_structure.sample(2))
 
     return maf, prior_matching_bijector
 
   maf, prior_matching_bijector = build_model(model)
 
+  '''sample_time = []
 
+  for _ in range(10):
+    start = time.time()
+    maf.sample(100)
+    sample_time.append(time.time() - start)
+  print(f'{name}_{dataset_name}: {np.mean(sample_time):.3f} \\pm '
+        f'{np.std(sample_time):.3f}')'''
   if dataset_name == 'iris':
     dataset = tf.data.Dataset.from_generator(iris_generator,
-                                               output_types=tf.float32).map(prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
+                                               output_types=tf.float32).batch(int(1e3)).prefetch(tf.data.AUTOTUNE)
   else:
     dataset = tf.data.Dataset.from_generator(digits_generator,
-                                             output_types=tf.float32).map(
-      prior_matching_bijector).batch(100).prefetch(tf.data.AUTOTUNE)
+                                             output_types=tf.float32).batch(int(1e3)).prefetch(tf.data.AUTOTUNE)
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -147,29 +197,42 @@ def train(model, name, dataset_name, save_dir):
 
   epoch_loss_avg = tf.keras.metrics.Mean()
   it = 0
-  for x in dataset:
+  is_break = False
 
-    # Optimize the model
-    loss_value = optimizer_step(maf, x)
-    epoch_loss_avg.update_state(loss_value)
-
-    if it == 0:
-      best_loss = epoch_loss_avg.result()
-      epoch_loss_avg = tf.keras.metrics.Mean()
-      save_path = checkpoint_manager.save()
-    elif it % 100 == 0:
-      train_loss_results.append(epoch_loss_avg.result())
-      #print(train_loss_results[-1])
-      epoch_loss_avg = tf.keras.metrics.Mean()
-      if tf.math.is_nan(train_loss_results[-1]):
-        break
-      else:
-        save_path = checkpoint_manager.save()
-    if it >= num_iterations:
+  while it < num_iterations:
+    if is_break:
       break
-    it += 1
+    train_data = next(iter(dataset))
+    train_dataset = tf.data.Dataset.from_tensor_slices(train_data) \
+      .map(prior_matching_bijector, num_parallel_calls=tf.data.AUTOTUNE) \
+      .batch(100).prefetch(tf.data.AUTOTUNE)
+    for x in train_dataset:
+
+      # Optimize the model
+      loss_value = optimizer_step(maf, x)
+      epoch_loss_avg.update_state(loss_value)
+
+      if it == 0:
+        best_loss = epoch_loss_avg.result()
+        epoch_loss_avg = tf.keras.metrics.Mean()
+        save_path = checkpoint_manager.save()
+      elif it % 100 == 0:
+        train_loss_results.append(epoch_loss_avg.result())
+        #print(train_loss_results[-1])
+        epoch_loss_avg = tf.keras.metrics.Mean()
+        if tf.math.is_nan(train_loss_results[-1]):
+          break
+        else:
+          save_path = checkpoint_manager.save()
+      if it % 10000 == 0 and it > 0:
+        print(train_loss_results[-1])
+        print(it)
+      if it >= num_iterations:
+        break
+      it += 1
 
   new_maf, _ = build_model(model)
+  
 
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
   new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
@@ -213,7 +276,16 @@ def train(model, name, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf3']
+
+models = [
+  #'np_splines',
+  #'sandwich_splines',
+  #'splines',
+  #'np_maf',
+  #'sandwich',
+  #'maf',
+  'maf3'
+]
 
 main_dir = 'hierarchical_results'
 if not os.path.isdir(main_dir):
@@ -221,7 +293,7 @@ if not os.path.isdir(main_dir):
 
 dataset = ['digits']
 
-n_runs = [4]
+n_runs = [0,1,2,3,4]
 
 for run in n_runs:
   for data in dataset:

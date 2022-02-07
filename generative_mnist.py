@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 import pickle
 import tensorflow_datasets as tfds
 import tensorflow as tf
@@ -8,8 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import surrogate_posteriors
+import tensorflow_probability.python.internal.prefer_static as ps
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -20,7 +22,7 @@ Root = tfd.JointDistributionCoroutine.Root
 n_components = 100
 lambd = 1e-6
 n_dims = 784
-num_epochs = 100000
+num_epochs = 10000000
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -66,7 +68,7 @@ def train(model, n_components, name, save_dir):
             name='locs')
         else:
           locs = tf.Variable(
-            [tf.linspace(-loc_range, 0., n_components) for _ in
+            [tf.linspace(-loc_range, loc_range, n_components) for _ in
              range(n_dims)],
             name='locs')
         scales = tfp.util.TransformedVariable(
@@ -106,9 +108,9 @@ def train(model, n_components, name, save_dir):
       maf = surrogate_posteriors._sandwich_maf_normalizing_program(
         prior_structure, use_bn=use_bn)
 
-    elif model_name in ['sandwich_splines', 'sandwich_splines_bn'] :
+    elif model_name in ['sandwich_splines', 'sandwich_splines_bn']:
       flow_params = {
-        'layers': 6,
+        'layers': 3,
         'number_of_bins': 32,
         'input_dim': 784,
         'nn_layers': [32, 32],
@@ -124,7 +126,7 @@ def train(model, n_components, name, save_dir):
         'number_of_bins': 32,
         'input_dim': 784,
         'nn_layers': [32,32],
-        'b_interval': 3,
+        'b_interval': 15,
         'use_bn': use_bn
       }
       maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
@@ -143,8 +145,8 @@ def train(model, n_components, name, save_dir):
                                                          surrogate_posterior_name='normalizing_program',
                                                          backnone_name='splines',
                                                          flow_params=flow_params)
-      # maf.sample(1)
-    #maf.log_prob(prior_structure.sample(100))
+
+    # maf.log_prob(prior_structure.sample(2))
 
     return maf, prior_matching_bijector
 
@@ -162,48 +164,45 @@ def train(model, n_components, name, save_dir):
     return -model.log_prob(inputs)
 
   def inverse_logits(x):
-    return (tf.math.exp(x) - lambd) / (1 - 2 * lambd)
+    x = tfb.Sigmoid()(x)
+    x = x / (1 - 2 * lambd) - lambd
+    return x
 
   def _preprocess(sample):
     image = tf.cast(sample['image'], tf.float32)
-    image = (image + tf.random.uniform(tf.shape(image), minval=0., maxval=1., seed=42)) / 256. # dequantize and
-    image = tf.math.log(lambd + (1 - 2 * lambd) * image) # logit
+    image = (image + tf.random.uniform(tf.shape(image), minval=0., maxval=1.,
+                                       seed=42)) / 256.  # dequantize
+    image = lambd + (1 - 2 * lambd) * image
+    image = tfb.Invert(tfb.Sigmoid())(image) # logit
     image = tf.reshape(image, [-1])
     image = prior_matching_bijector(image)
     return image
 
   maf, prior_matching_bijector = build_model(model)
-
   data = tfds.load("mnist", split=["train[:50000]", "train[50000:]", "test"])
   train_data, valid_data, test_data = data[0], data[1], data[2]
 
   train_dataset = (train_data
-                   .map(_preprocess)
+                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
                    .cache()
-                   .shuffle(int(10e3))
+                   .shuffle(int(1e3))
                    .batch(256)
                    .prefetch(tf.data.AUTOTUNE))
 
   valid_dataset = (valid_data
-                   .map(_preprocess)
+                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
                    .cache()
                    .batch(256)
                    .prefetch(tf.data.AUTOTUNE))
 
   test_dataset = (test_data
-                   .map(_preprocess)
+                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
                    .cache()
                    .batch(256)
                    .prefetch(tf.data.AUTOTUNE))
 
 
   optimizer = tf.optimizers.Adam(learning_rate=1e-4)
-  checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
-  ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
-  if os.path.isdir(ckpt_dir):
-    clear_folder(ckpt_dir)
-  checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
-                                                  max_to_keep=20)
   train_loss_results = []
   valid_loss_results = []
   best_val_loss = None
@@ -225,11 +224,26 @@ def train(model, n_components, name, save_dir):
       loss_value = eval(maf, x)
       valid_loss_avg.update_state(loss_value)
     valid_loss_results.append(valid_loss_avg.result())
+
+    if tf.math.is_nan(valid_loss_avg.result()):
+      break
+
     if epoch == 0:
+      checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
+      ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
+      if os.path.isdir(ckpt_dir):
+        clear_folder(ckpt_dir)
+      checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
+                                                      max_to_keep=20)
       best_loss = valid_loss_avg.result()
 
     elif best_loss > valid_loss_avg.result():
-      save_path = checkpoint_manager.save()
+      test_loss_avg = tf.keras.metrics.Mean()
+      for x in test_dataset:
+        loss_value = eval(maf, x)
+        test_loss_avg.update_state(loss_value)
+      if not tf.math.is_nan(test_loss_avg.result()):
+        save_path = checkpoint_manager.save()
       best_loss = valid_loss_avg.result()
       epochs_counter = 0
     else:
@@ -239,7 +253,8 @@ def train(model, n_components, name, save_dir):
         break
 
   new_maf, _ = build_model(model)
-
+  new_maf.log_prob(x)
+  eval(new_maf, x)
   new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
 
   new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
@@ -258,11 +273,12 @@ def train(model, n_components, name, save_dir):
   plt.close()
 
   test_loss_avg = tf.keras.metrics.Mean()
+
   for x in test_dataset:
     loss_value = eval(new_maf, x)
     test_loss_avg.update_state(loss_value)
 
-  results = {# 'samples': tf.convert_to_tensor(new_flow.sample(1000)),
+  results = {#'samples': tf.convert_to_tensor(new_maf.sample(1000)),
              'loss_eval': test_loss_avg.result(),
              'train_loss': train_loss_results,
              'valid_loss': valid_loss_results
@@ -272,14 +288,24 @@ def train(model, n_components, name, save_dir):
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
   print(f'{name} done!')
 
-models = ['splines_bn']#, 'np_maf', 'sandwich',
+models = [
+  #'np_maf',
+  #'maf',
+  #'maf3'
+  #'splines'
+  #'np_splines'
+  'sandwich_bn',
+  #'sandwich_splines_bn',
+  ]
+# 'np_maf',
+# 'sandwich',
 # 'maf',
 # 'maf3']
 
 main_dir = 'mnist'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
-n_runs = [0, 1, 2, 3, 4]
+n_runs = [3]
 
 for run in n_runs:
   if not os.path.exists(f'{main_dir}/run_{run}'):
@@ -293,6 +319,6 @@ for run in n_runs:
     elif model == 'splines' or model == 'splines_bn':
       train(model, 20, model, save_dir=f'{main_dir}/run_{run}')
     else:
-      for n_components in [10]:
+      for n_components in [100]:
         name = f'c{n_components}_{model}'
         train(model, n_components, name, save_dir=f'{main_dir}/run_{run}')

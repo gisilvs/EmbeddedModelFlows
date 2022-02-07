@@ -17,7 +17,7 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-num_iterations = int(2000)
+num_iterations = int(200)
 
 def clear_folder(folder):
   for filename in os.listdir(folder):
@@ -92,14 +92,14 @@ def train(model, name, structure, dataset_name, save_dir):
           current = new
 
     elif structure == 'stock':
-      eps = 1e-6
+      eps = 1e-9
       theta = -2.5316484
       if model == 'maf':
         mul = .5
         scale = 1.
       else:
        theta = tf.Variable(0.)
-       mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.01, high=0.99))
+       mul = tfp.util.TransformedVariable(.5, tfb.Sigmoid(low=0.1, high=0.9))
        scale = tfp.util.TransformedVariable(1., tfb.Softplus())
 
 
@@ -108,8 +108,10 @@ def train(model, name, structure, dataset_name, save_dir):
         x = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name='x_0'))
         v = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name='v_0'))
         for t in range(1, series_len):
-          x = yield tfd.Normal(loc=x, scale=tf.math.exp(v)+eps, name=f'x_{t}')
+          x = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name=f'x_{t}'))
+          # x = yield tfd.Normal(loc=x, scale=tf.math.softplus(v) + eps, name=f'x_{t}')
           v = yield tfd.Normal(loc=mul*(v-theta), scale=scale, name=f'v_{t}')
+          # v = yield Root(tfd.Normal(loc=tf.zeros(1), scale=tf.ones(1), name=f'v_{t}'))
 
 
     prior_matching_bijector = tfb.Chain(
@@ -147,9 +149,9 @@ def train(model, name, structure, dataset_name, save_dir):
   elif dataset_name == 'stock':
     batch_size = 128
     train_data, valid_data, test_data = process_stock.get_stock_data()
-    train_data = tf.math.log(tf.reshape(train_data, [tf.shape(train_data)[0], -1]))
-    valid_data = tf.math.log(tf.reshape(valid_data, [tf.shape(valid_data)[0], -1]))
-    test_data = tf.math.log(tf.reshape(test_data, [tf.shape(test_data)[0], -1]))
+    train_data = tf.reshape(train_data, [tf.shape(train_data)[0], -1])
+    valid_data = tf.reshape(valid_data, [tf.shape(valid_data)[0], -1])
+    test_data = tf.reshape(test_data, [tf.shape(test_data)[0], -1])
 
   train = tf.data.Dataset.from_tensor_slices(train_data).map(prior_matching_bijector).shuffle(int(1e4)).batch(batch_size).prefetch(tf.data.AUTOTUNE)
   valid = tf.data.Dataset.from_tensor_slices(valid_data).map(prior_matching_bijector).batch(batch_size).prefetch(tf.data.AUTOTUNE)
@@ -161,6 +163,8 @@ def train(model, name, structure, dataset_name, save_dir):
   optimizer = tf.optimizers.Adam(learning_rate=lr)
   checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
   ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
+  if os.path.isdir(ckpt_dir):
+    clear_folder(ckpt_dir)
   checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
                                                   max_to_keep=20)
   train_loss_results = []
@@ -177,9 +181,11 @@ def train(model, name, structure, dataset_name, save_dir):
       # print(loss_value)
       train_loss_avg.update_state(loss_value)
 
+    print(train_loss_avg.result())
     train_loss_results.append(train_loss_avg.result())
     # print(train_loss_results[-1])
     if tf.math.is_nan(train_loss_results[-1]):
+      a = 0
       break
 
     valid_loss_avg = tf.keras.metrics.Mean()
@@ -228,7 +234,7 @@ def train(model, name, structure, dataset_name, save_dir):
 
 
   print(f'{name} done!')
-models = ['maf'] # 'sandwich']
+models = ['np_maf'] # 'sandwich']
 
 main_dir = 'time_series_results'
 if not os.path.isdir(main_dir):
