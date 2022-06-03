@@ -127,3 +127,15 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+2d_toy_results
+2d_toy_results_0
+hierarchical_results
+initial_sp
+mnist
+results
+results_0
+results_with_samples
+time_series_results
+time_series_results_0
+trained_sp
