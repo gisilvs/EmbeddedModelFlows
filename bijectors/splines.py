@@ -1,11 +1,11 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-import numpy as np
+from tensorflow_probability.python.internal import dtype_util
+from tensorflow_probability.python.internal import prefer_static as ps
 
 from .actnorm import ActivationNormalization
 
-from tensorflow_probability.python.internal import prefer_static as ps
-from tensorflow_probability.python.internal import dtype_util
 
 class SplineParams(tf.Module):
 
@@ -27,8 +27,8 @@ class SplineParams(tf.Module):
         out_shape = tf.concat((tf.shape(x)[:-1], (nunits, self._nbins)), 0)
         x = tf.reshape(x, out_shape)
         return tf.math.softmax(x, axis=-1) * (
-              self._interval_width - self._nbins * self._min_bin_width
-              ) + self._min_bin_width
+            self._interval_width - self._nbins * self._min_bin_width
+        ) + self._min_bin_width
 
       def _slopes(x):
         out_shape = tf.concat((
@@ -50,6 +50,7 @@ class SplineParams(tf.Module):
       knot_slopes=self._knot_slopes(x),
       range_min=self._range_min)
 
+
 # todo: add nbins and nmber of hidden units and width and range_min as parameters to select with main call
 # supports only 2-layers network
 # todo: add this
@@ -66,7 +67,7 @@ def get_spline_params_network(output_size, width, nbins, net_input, nn_layers):
     x = tf.reshape(x, out_shape)
     return tf.math.softplus(x) + 1e-3
 
-  #net_input = tfk.Input(shape=(output_size,))
+  # net_input = tfk.Input(shape=(output_size,))
 
   shared_output = tfk.Sequential([
     tfkl.Dense(nn_layers[0], activation='relu'),
@@ -89,14 +90,14 @@ def get_spline_params_network(output_size, width, nbins, net_input, nn_layers):
 
   return [bin_widths, bin_heights, knot_slopes]
 
+
 def make_splines(input_dim, number_of_bins, nn_layers,
                  b_interval, layers, use_bn=False):
-
-  first_half_dim = input_dim//2
+  first_half_dim = input_dim // 2
   second_half_dim = input_dim - first_half_dim
   permutation = tf.cast(np.concatenate(
     (np.arange(first_half_dim, input_dim), np.arange(0, first_half_dim))),
-                        tf.int32)
+    tf.int32)
   bijector_chain = []
   bijector_chain.append(
     tfb.RealNVP(first_half_dim, bijctor_fn=SplineParams(nbins=number_of_bins,
@@ -105,7 +106,7 @@ def make_splines(input_dim, number_of_bins, nn_layers,
   )
   if use_bn:
     bijector_chain.append(ActivationNormalization(784))
-  for i in range(layers-1):
+  for i in range(layers - 1):
     if i % 2 == 0:
       dim = second_half_dim
     else:
@@ -113,8 +114,8 @@ def make_splines(input_dim, number_of_bins, nn_layers,
     bijector_chain.append(tfb.Permute(permutation))
     bijector_chain.append(
       tfb.RealNVP(dim, bijctor_fn=SplineParams(nbins=number_of_bins,
-                                                          interval_width=b_interval,
-                                                          range_min=-b_interval / 2)))
+                                               interval_width=b_interval,
+                                               range_min=-b_interval / 2)))
     if use_bn:
       bijector_chain.append(ActivationNormalization(784))
   return bijector_chain
