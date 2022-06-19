@@ -6,6 +6,8 @@ from tensorflow_probability.python.internal import prefer_static as ps
 
 from .actnorm import ActivationNormalization
 
+#TODO: refactor to tfp splines
+
 class NN_Spline(tfkl.Layer):
   def __init__(self, layers, k_dim, remaining_dims, first_d_dims,
                activation="relu"):
