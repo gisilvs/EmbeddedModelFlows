@@ -5,14 +5,14 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from vi.models import get_model
+from vi.models import get_vi_model
 
 num_results = 5000
 num_burnin_steps = 3000
 
 num_schools = 8
 
-_, _, target_log_prob_fn, _ = get_model('eight_schools', seed=10)
+_, _, target_log_prob_fn, _ = get_vi_model('eight_schools', seed=10)
 
 
 # Improve performance by tracing the sampler using `tf.function`
