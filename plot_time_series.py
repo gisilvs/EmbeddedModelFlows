@@ -1,8 +1,6 @@
 import pickle
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from plot_utils import plot_data
 
 rc = {
     "text.usetex": True,
@@ -13,7 +11,7 @@ plt.rcParams.update(rc)
 model_name = 'van_der_pol_smoothing_r'
 sp_name = 'iaf'
 rep_number = 0
-with open(f'results/{model_name}/{sp_name}/rep{rep_number}.pickle', 'rb') as handle:
+with open(f'all_results/results/{model_name}/{sp_name}/rep{rep_number}.pickle', 'rb') as handle:
   results = pickle.load(handle)
 
 loss = results['loss']

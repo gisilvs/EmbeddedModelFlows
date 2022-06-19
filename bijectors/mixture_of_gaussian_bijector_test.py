@@ -1,11 +1,10 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow_probability.python.internal import samplers
 from tensorflow_probability.python.internal import test_util
 
 import bijector_test_util
 
-from mixture_of_gaussian_bijector import MixtureOfGaussians, InverseMixtureOfGaussians
+from bijectors.mixture_of_gaussian_bijector import InverseMixtureOfGaussians
 
 tfb = tfp.bijectors
 tfd = tfp.distributions

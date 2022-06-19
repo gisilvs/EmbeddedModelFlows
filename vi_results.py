@@ -1,11 +1,8 @@
-import pickle
 import tensorflow as tf
 import tensorflow_probability as tfp
 import matplotlib.pyplot as plt
-from surrogate_posteriors import get_surrogate_posterior, _get_prior_matching_bijectors_and_event_dims
-from models import get_model
-from sklearn.neighbors import KernelDensity
-import numpy as np
+from models.model_getter import get_surrogate_posterior, _get_prior_matching_bijectors_and_event_dims
+from vi.models import get_model
 import seaborn as sns
 
 rc = {

@@ -1,18 +1,13 @@
 import os
 import shutil
 import pickle
-import functools
 import tensorflow as tf
 import tensorflow_probability as tfp
 from sklearn import datasets
-import surrogate_posteriors
-from tensorflow_probability.python.internal import prefer_static as ps
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def iris_generator():
   iris = datasets.load_iris()
@@ -180,10 +175,10 @@ def train(model, name, dataset_name, save_dir):
         f'{np.std(sample_time):.3f}')'''
   if dataset_name == 'iris':
     dataset = tf.data.Dataset.from_generator(iris_generator,
-                                               output_types=tf.float32).batch(int(1e3)).prefetch(tf.data.AUTOTUNE)
+                                               output_types=tf.float32).batch(100).prefetch(tf.data.AUTOTUNE)
   else:
     dataset = tf.data.Dataset.from_generator(digits_generator,
-                                             output_types=tf.float32).batch(int(1e3)).prefetch(tf.data.AUTOTUNE)
+                                             output_types=tf.float32).map(prior_matching_bijector, num_parallel_calls=tf.data.AUTOTUNE).batch(100).prefetch(tf.data.AUTOTUNE)
 
   lr = 1e-4
   lr_decayed_fn = tf.keras.optimizers.schedules.CosineDecay(
@@ -197,39 +192,25 @@ def train(model, name, dataset_name, save_dir):
 
   epoch_loss_avg = tf.keras.metrics.Mean()
   it = 0
-  is_break = False
-
-  while it < num_iterations:
-    if is_break:
-      break
-    train_data = next(iter(dataset))
-    train_dataset = tf.data.Dataset.from_tensor_slices(train_data) \
-      .map(prior_matching_bijector, num_parallel_calls=tf.data.AUTOTUNE) \
-      .batch(100).prefetch(tf.data.AUTOTUNE)
-    for x in train_dataset:
-
-      # Optimize the model
-      loss_value = optimizer_step(maf, x)
-      epoch_loss_avg.update_state(loss_value)
-
-      if it == 0:
-        best_loss = epoch_loss_avg.result()
-        epoch_loss_avg = tf.keras.metrics.Mean()
-        save_path = checkpoint_manager.save()
-      elif it % 100 == 0:
-        train_loss_results.append(epoch_loss_avg.result())
-        #print(train_loss_results[-1])
-        epoch_loss_avg = tf.keras.metrics.Mean()
-        if tf.math.is_nan(train_loss_results[-1]):
-          break
-        else:
-          save_path = checkpoint_manager.save()
-      if it % 10000 == 0 and it > 0:
-        print(train_loss_results[-1])
-        print(it)
-      if it >= num_iterations:
+  for x in dataset:
+    # Optimize the model
+    loss_value = optimizer_step(maf, x)
+    epoch_loss_avg.update_state(loss_value)
+    if it == 0:
+      best_loss = epoch_loss_avg.result()
+      epoch_loss_avg = tf.keras.metrics.Mean()
+      save_path = checkpoint_manager.save()
+    elif it % 100 == 0:
+      train_loss_results.append(epoch_loss_avg.result())
+      # print(train_loss_results[-1])
+      epoch_loss_avg = tf.keras.metrics.Mean()
+      if tf.math.is_nan(train_loss_results[-1]):
         break
-      it += 1
+      else:
+        save_path = checkpoint_manager.save()
+    if it >= num_iterations:
+      break
+    it += 1
 
   new_maf, _ = build_model(model)
   
@@ -250,13 +231,13 @@ def train(model, name, dataset_name, save_dir):
 
   if dataset_name == 'iris':
     eval_dataset = tf.data.Dataset.from_generator(iris_generator,
-                                               output_types=tf.float32).map(prior_matching_bijector).batch(100000)
+                                               output_types=tf.float32).map(prior_matching_bijector).batch(10000).prefetch(tf.data.AUTOTUNE)
 
 
   else:
     eval_dataset = tf.data.Dataset.from_generator(digits_generator,
                                                   output_types=tf.float32).map(
-      prior_matching_bijector).batch(10000)
+      prior_matching_bijector,  num_parallel_calls=tf.data.AUTOTUNE).batch(1000).prefetch(tf.data.AUTOTUNE)
 
   eval_log_prob = -tf.reduce_mean(new_maf.log_prob(next(iter(eval_dataset))))
 
@@ -282,18 +263,18 @@ models = [
   #'sandwich_splines',
   #'splines',
   #'np_maf',
-  #'sandwich',
+  'sandwich',
   #'maf',
-  'maf3'
+  #'maf3'
 ]
 
-main_dir = 'hierarchical_results'
+main_dir = 'all_results/hierarchical_results'
 if not os.path.isdir(main_dir):
   os.makedirs(main_dir)
 
 dataset = ['digits']
 
-n_runs = [0,1,2,3,4]
+n_runs = [0]
 
 for run in n_runs:
   for data in dataset:

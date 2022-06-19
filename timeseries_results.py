@@ -66,8 +66,8 @@ rc = {
 plt.rcParams.update(rc)
 plt.rcParams["figure.figsize"] = (9,3)
 
-models = ['splines', 'np_splines_continuity']
-data = ['lorenz']#['brownian', 'ornstein', 'lorenz']
+models = ['np_maf_continuity', 'np_splines_continuity', 'maf', 'maf3', 'splines', 'bottom']
+data = ['brownian', 'ornstein', 'lorenz', 'van_der_pol']
 model = 'np_maf_stock'
 run = 'run_0'
 d_names = {
@@ -108,7 +108,7 @@ for g in generators:
 
 for d in data:
   for model in models:
-    with open(f'time_series_results/{run}/{d}/{model}.pickle', 'rb') as handle:
+    with open(f'all_results/time_series_results/{run}/{d}/{model}.pickle', 'rb') as handle:
       results = pickle.load(handle)
     '''plt.plot(results['loss'], label=names[model])
   if d == 'lorenz':

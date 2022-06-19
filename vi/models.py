@@ -161,7 +161,7 @@ def _eight_schools(seed=None):
 
   eight_schools = model.experimental_pin(treatment_effects=treatment_effects)
 
-  # if seed is one of those used in run_experiments.py, then we can use them as index of ground truth
+  # if seed is one of those used in vi_experiments.py, then we can use them as index of ground truth
   idx = int(seed / 10 - 1)
   with open(f'../ground_truth/eight_schools/gt.pickle', 'rb') as handle:
     gt = pickle.load(handle)
@@ -202,7 +202,7 @@ def _gaussian_binary_tree(num_layers, initial_scale, nodes_scale, coupling_link,
   return model, ground_truth[:-1], model.unnormalized_log_prob, ground_truth[-1]
 
 
-def get_model(model_name, seed=None):
+def get_vi_model(model_name, seed=None):
   if model_name == 'brownian_smoothing_r':
     return _brownian_motion(is_bridge=False, is_classification=False, seed=seed)
 

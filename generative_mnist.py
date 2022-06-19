@@ -1,15 +1,10 @@
 import os
 import shutil
-import time
 import pickle
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import tensorflow_probability as tfp
 import matplotlib.pyplot as plt
-import numpy as np
-
-import surrogate_posteriors
-import tensorflow_probability.python.internal.prefer_static as ps
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

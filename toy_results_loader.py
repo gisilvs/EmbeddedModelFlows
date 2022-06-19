@@ -1,8 +1,5 @@
 import pickle
-import tensorflow as tf
 import tensorflow_probability as tfp
-from plot_utils import plot_heatmap_2d
-import surrogate_posteriors
 import matplotlib.pyplot as plt
 
 rc = {

@@ -1,4 +1,3 @@
-import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow_probability.python.internal import cache_util
 
@@ -6,8 +5,8 @@ tfb = tfp.bijectors
 tfd = tfp.distributions
 tfe = tfp.experimental
 
-class MixtureOfGaussians(tfb.Bijector):
 
+class MixtureOfGaussians(tfb.Bijector):
   _cache = cache_util.BijectorCacheWithGreedyAttrs(
     forward_name='_augmented_forward', inverse_name='_augmented_inverse')
 
@@ -30,7 +29,8 @@ class MixtureOfGaussians(tfb.Bijector):
 
   def _augmented_inverse(self, y):
     bij = tfe.bijectors.ScalarFunctionWithInferredInverse(
-      lambda e: self.forward_pass(e), max_iterations=100, root_search_fn=tfp.math.find_root_chandrupatla)
+      lambda e: self.forward_pass(e), max_iterations=100,
+      root_search_fn=tfp.math.find_root_chandrupatla)
     ildj = bij.inverse_log_det_jacobian(y)
     y = bij.inverse(y)
     return y, {'ildj': ildj, 'fldj': -ildj}
@@ -61,7 +61,6 @@ class MixtureOfGaussians(tfb.Bijector):
 
 
 class InverseMixtureOfGaussians(tfb.Bijector):
-
   _cache = cache_util.BijectorCacheWithGreedyAttrs(
     forward_name='_augmented_forward', inverse_name='_augmented_inverse')
 

@@ -5,9 +5,8 @@ from tensorflow_probability.python.internal import test_util
 
 import bijector_test_util
 
-from surrogate_posteriors import get_surrogate_posterior, GatedAutoFromNormal
-
-from gate_bijector import GateBijectorForNormal, GateBijector
+from bijectors.gate_bijector import GateBijectorForNormal, GateBijector
+from bijectors.gated_structured_layer import GatedStructuredLayer
 
 tfb = tfp.bijectors
 tfd = tfp.distributions
@@ -72,7 +71,7 @@ class GateBijectorForNormalTests(test_util.TestCase):
     def simple_prior():
       yield tfd.Sample(tfd.Normal(0., 1.), 3)
 
-    bijector = GatedAutoFromNormal(simple_prior)
+    bijector = GatedStructuredLayer(simple_prior)
 
     surrogate_posterior = tfd.TransformedDistribution(
       distribution=simple_prior,

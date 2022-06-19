@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow_probability.python.internal import dtype_util
@@ -6,6 +7,13 @@ from tensorflow_probability.python.internal import prefer_static as ps
 
 from .actnorm import ActivationNormalization
 
+
+tfd = tfp.distributions
+tfb = tfp.bijectors
+tfe = tfp.experimental
+tfp_util = tfp.util
+tfkl = tf.keras.layers
+tfk = tensorflow.keras
 #TODO: refactor to tfp splines
 
 class NN_Spline(tfkl.Layer):
@@ -311,16 +319,6 @@ class NeuralSplineFlow(tfb.Bijector):
     y_1_to_d = x_1_to_d
     input_mask = self._data_mask(x_d_to_D, intervals_for_func)
 
-    # these conditions are used in order to be able to use tf.function however
-    # it didn't work with tf.function.
-    '''res = tf.cond(tf.reduce_any(input_mask),
-            lambda:1, lambda:0)
-    if res> 0:
-      r = self.return_forward_result(x_d_to_D, input_mask, x_1_to_d,
-                                     intervals_for_func)
-    else:
-      r = self.return_identity(x)'''
-
     r = tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
                 lambda: self.return_identity(x), lambda:
                 self.return_forward_result(
@@ -336,13 +334,6 @@ class NeuralSplineFlow(tfb.Bijector):
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
     input_mask = self._data_mask(y_d_to_D, intervals_for_func)
-    '''res = tf.cond(tf.reduce_any(input_mask),
-                  lambda:1,lambda: 0)
-    if res> 0:
-      return self.return_inverse_result(y_d_to_D, input_mask, y_1_to_d,
-                                        intervals_for_func)
-    else:
-      return self.return_identity(y)'''
     return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
                    lambda: self.return_identity(y), lambda : self.return_inverse_result(y_d_to_D,input_mask, y_1_to_d,
                                         intervals_for_func))
@@ -353,21 +344,11 @@ class NeuralSplineFlow(tfb.Bijector):
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
     input_mask = self._data_mask(x_d_to_D, intervals_for_func)
-    '''res = tf.cond(tf.reduce_any(input_mask),
-                  lambda:1, lambda:0)
-    if res > 0:
-      return self.return_result_log_det(x, input_mask, x_1_to_d,
-                                        intervals_for_func, x_d_to_D)
-    else:
-      return self.return_identity_log_det()'''
+
     return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
                 lambda: self.return_identity_log_det(), lambda:
                 self.return_result_log_det(x,input_mask, x_1_to_d,
                                         intervals_for_func, x_d_to_D))
-
-  '''def _inverse_log_det_jacobian(self, y):
-    neg_for_log_det = -1 * self._forward_log_det_jacobian(self._inverse(y))
-    return neg_for_log_det'''
 
 def make_splines(input_dim, number_of_bins, nn_layers,
                  b_interval, layers, use_bn=False):

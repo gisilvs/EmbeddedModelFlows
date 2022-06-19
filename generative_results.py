@@ -11,22 +11,26 @@ names = {
   'c100_np_maf': 'GEMF-T',
   'sandwich': 'GEMF-M',
   'c100_sandwich': 'GEMF-M',
+  'c100_sandwich_bn': 'GEMF-M',
   'np_maf_smoothness': 'GEMF-T(s)',
   'np_maf_continuity': 'GEMF-T(c)',
   'bottom': 'B-MAF',
   'splines': 'NSF',
   'c100_np_splines': 'NSF-EMF-T',
   'c100_sandwich_splines': 'NSF-EMF-M',
+  'c100_sandwich_splines_bn': 'NSF-EMF-M',
   'np_splines_continuity': 'NSF-EMF-T(c)',
 }
 
 d_names = {
   'brownian': 'Brownian motion',
   'ornstein': 'Ornstein-Uhlenbeck process',
-  'lorenz': 'Lorenz system'
+  'lorenz': 'Lorenz system',
+  'mnist': 'MNIST',
+  'van_der_pol': "Van der Pol oscillator"
 }
 
-base_dir = 'time_series_results'
+base_dir = 'all_results/time_series_results'
 
 if base_dir == 'mnist':
   datasets = ['mnist']
@@ -44,10 +48,10 @@ if base_dir == 'mnist':
 
 if base_dir == '2d_toy_results':
   datasets = ['checkerboard', '8gaussians']
-  models = ['c100_np_splines','c100_sandwich_splines','splines']
+  models = ['c100_np_maf', 'c100_sandwich', 'c100_np_splines','c100_sandwich_splines', 'maf', 'maf3', 'splines']
 
 elif base_dir == 'time_series_results':
-  datasets = ['brownian', 'ornstein', 'lorenz', 'van_der_pol'] # , 'ornstein']
+  datasets = ['van_der_pol'] # , 'ornstein']
   models = ['np_maf_continuity', 'np_splines_continuity','maf', 'maf3','splines'
             ,'bottom']
 
@@ -61,7 +65,7 @@ for dataset in datasets:
   for model in models:
     results[dataset][model] = []
 for run in os.listdir(base_dir):
-  if 'run' in run:
+  if 'run_0' in run:
     if datasets:
       for dataset in datasets:
         for model in models:
@@ -78,13 +82,14 @@ for run in os.listdir(base_dir):
               results[dataset][model].append(res['loss_eval'])
           except:
             a = 0
-          '''plt.plot(res['loss'], label=names[model], alpha=0.9)
+          plt.plot(res['loss'], label=names[model], alpha=0.9)
         # if dataset == 'lorenz':
-        plt.ylim(bottom=-250, top=100)
+        # plt.ylim(bottom=-250, top=100)
+        plt.ylim(top=0)
         plt.title(f'{d_names[dataset]}')
         plt.legend()
         plt.savefig(f'{base_dir}/loss_{dataset}.png')
-        plt.close()'''
+        plt.close()
 
 
 for d, dataset in results.items():
@@ -94,8 +99,8 @@ for d, dataset in results.items():
     for i, model in enumerate(models):
       f = ''
       if i == bold_idx:
-        f += f' & $\\boldsymbol{{{np.mean(dataset[model]):.3f} \\pm {sem(dataset[model]):.4f}}}$'
+        f += f' & $\\boldsymbol{{{np.mean(dataset[model]):.3f} \\pm {sem(dataset[model]):.3f}}}$'
       else:
-        f += f' & ${np.mean(dataset[model]):.3f} \\pm {sem(dataset[model]):.4f}$'
+        f += f' & ${np.mean(dataset[model]):.3f} \\pm {sem(dataset[model]):.3f}$'
       print(f)
 

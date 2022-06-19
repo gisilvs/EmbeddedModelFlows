@@ -30,7 +30,7 @@ sps = [
   #'gated_normalizing_program_iaf',
        ]
 
-root_dir='results'
+root_dir= 'all_results/results'
 results_dict = {}
 
 for model in os.listdir(root_dir):
