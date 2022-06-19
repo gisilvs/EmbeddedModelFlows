@@ -1,35 +1,37 @@
-import random
 import pickle
+import random
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-import numpy as np
 
-from models import get_model
-
+from vi.models import get_model
 
 num_results = 5000
 num_burnin_steps = 3000
 
-num_schools=8
+num_schools = 8
 
-_, _, target_log_prob_fn, _ =get_model('eight_schools', seed=10)
+_, _, target_log_prob_fn, _ = get_model('eight_schools', seed=10)
+
+
 # Improve performance by tracing the sampler using `tf.function`
 # and compiling it using XLA.
 @tf.function(autograph=False, experimental_compile=True)
 def do_sampling():
   return tfp.mcmc.sample_chain(
-      num_results=num_results,
-      num_burnin_steps=num_burnin_steps,
-      current_state=[
-          tf.zeros([], name='init_avg_effect'),
-          tf.zeros([], name='init_avg_stddev'),
-          tf.ones([num_schools], name='init_school_effects_standard'),
-      ],
-      kernel=tfp.mcmc.HamiltonianMonteCarlo(
-          target_log_prob_fn=target_log_prob_fn,
-          step_size=0.4,
-          num_leapfrog_steps=3))
+    num_results=num_results,
+    num_burnin_steps=num_burnin_steps,
+    current_state=[
+      tf.zeros([], name='init_avg_effect'),
+      tf.zeros([], name='init_avg_stddev'),
+      tf.ones([num_schools], name='init_school_effects_standard'),
+    ],
+    kernel=tfp.mcmc.HamiltonianMonteCarlo(
+      target_log_prob_fn=target_log_prob_fn,
+      step_size=0.4,
+      num_leapfrog_steps=3))
+
 
 states, kernel_results = do_sampling()
 
@@ -54,9 +56,9 @@ while 1:
       school_effects_standard[idx],
     ])
     idxs.append(idx)
-    i+=1
+    i += 1
   if i == 10:
     break
 
-with open(f'ground_truth/eight_schools/gt.pickle', 'wb') as handle:
+with open(f'../ground_truth/eight_schools/gt.pickle', 'wb') as handle:
   pickle.dump(ground_truth, handle, protocol=pickle.HIGHEST_PROTOCOL)
