@@ -2,11 +2,8 @@ import numpy as np
 import tensorflow
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow_probability.python.internal import dtype_util
-from tensorflow_probability.python.internal import prefer_static as ps
 
 from .actnorm import ActivationNormalization
-
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -14,7 +11,9 @@ tfe = tfp.experimental
 tfp_util = tfp.util
 tfkl = tf.keras.layers
 tfk = tensorflow.keras
-#TODO: refactor to tfp splines
+
+
+# TODO: refactor to tfp splines
 
 class NN_Spline(tfkl.Layer):
   def __init__(self, layers, k_dim, remaining_dims, first_d_dims,
@@ -73,7 +72,7 @@ class NeuralSplineFlow(tfb.Bijector):
     output = self.nn(x)
     self.min_bin_width = 1e-3  # maximum number of bins 1/1e-3 then...
     self.nn_model = tfk.Model(x, output, name="nn")
-    self.simetric_interval  = simetric_interval
+    self.simetric_interval = simetric_interval
 
   # some calculation could be done in one-line of code but it was preferred to explicitly write them
   # for easy debugging purposes during the development and also to give an understanding of the implementations of the terms in the paper
@@ -83,7 +82,7 @@ class NeuralSplineFlow(tfb.Bijector):
     return x
 
   def return_forward_result(self, x_d_to_D, input_mask, x_1_to_d,
-                       intervals_for_func):
+                            intervals_for_func):
     output = tf.zeros(tf.shape(x_d_to_D))
     input_mask_indexes = tf.where(input_mask)
     neg_input_mask_indexes = tf.where(~input_mask)
@@ -118,7 +117,7 @@ class NeuralSplineFlow(tfb.Bijector):
     return output
 
   def return_inverse_result(self, y_d_to_D, input_mask, y_1_to_d,
-                       intervals_for_func):
+                            intervals_for_func):
     output = tf.zeros(tf.shape(y_d_to_D), dtype=tf.float32)
     input_mask_indexes = tf.where(input_mask)
     neg_input_mask_indexes = tf.where(~input_mask)
@@ -158,7 +157,7 @@ class NeuralSplineFlow(tfb.Bijector):
     return tf.constant(0.0, dtype=tf.float32)
 
   def return_result_log_det(self, x, input_mask, x_1_to_d, intervals_for_func, \
-                                   x_d_to_D):
+                            x_d_to_D):
     input_mask_indexes = tf.where(input_mask)
     neg_input_mask_indexes = tf.where(~input_mask)
     thetas = self._produce_thetas(x_1_to_d)
@@ -208,7 +207,7 @@ class NeuralSplineFlow(tfb.Bijector):
   def _bins(self, thetas, intervals):
     normalized_widths = tf.math.softmax(thetas)
     normalized_widths_filled = self.min_bin_width + (
-          1 - self.min_bin_width * self.number_of_bins) * normalized_widths
+        1 - self.min_bin_width * self.number_of_bins) * normalized_widths
     expanded_widths = normalized_widths_filled * 2 * tf.expand_dims(intervals,
                                                                     1)
     return expanded_widths
@@ -260,9 +259,9 @@ class NeuralSplineFlow(tfb.Bijector):
     d_kplus1 = tf.gather_nd(derivatives, knot_ind)
     y_k = tf.gather_nd(knot_ys, bin_ind)
     second_term_nominator = y_kplus1_minus_y_k * (
-          s_k * xi_square + d_k * xi_times_1_minus_xi)
+        s_k * xi_square + d_k * xi_times_1_minus_xi)
     second_term_denominator = s_k + (
-          d_kplus1 + d_k - 2 * s_k) * xi_times_1_minus_xi
+        d_kplus1 + d_k - 2 * s_k) * xi_times_1_minus_xi
     forward_val = y_k + second_term_nominator / second_term_denominator
     return forward_val
 
@@ -298,7 +297,7 @@ class NeuralSplineFlow(tfb.Bijector):
     d_k = tf.gather_nd(derivatives, floor_indices)
     d_kplus1 = tf.gather_nd(derivatives, ceil_indices)
     nominator = s_k ** 2 * (d_kplus1 * (
-          xi_values ** 2) + 2 * s_k * xi_times_1_minus_xi + d_k * one_minus_xi_square)
+        xi_values ** 2) + 2 * s_k * xi_times_1_minus_xi + d_k * one_minus_xi_square)
     denominator = (s_k + (d_kplus1 + d_k - 2 * s_k) * xi_times_1_minus_xi) ** 2
     derivative_result = nominator / denominator
     return derivative_result
@@ -311,8 +310,8 @@ class NeuralSplineFlow(tfb.Bijector):
 
   def _forward(self, x):
     x_1_to_d, x_d_to_D = x[:, :self.first_d_dims], x[:, self.first_d_dims:]
-    #x_d_to_D = tf.constant(x_d_to_D, dtype=tf.float32)
-    #x_1_to_d = tf.constant(x_1_to_d, dtype=tf.float32)
+    # x_d_to_D = tf.constant(x_d_to_D, dtype=tf.float32)
+    # x_1_to_d = tf.constant(x_1_to_d, dtype=tf.float32)
     _, intervals_for_func = self.b_interval[
                             :self.first_d_dims], self.b_interval[
                                                  self.first_d_dims:]
@@ -322,9 +321,9 @@ class NeuralSplineFlow(tfb.Bijector):
     r = tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
                 lambda: self.return_identity(x), lambda:
                 self.return_forward_result(
-      x_d_to_D,
-                                                             input_mask, x_1_to_d,
-                                     intervals_for_func))
+                  x_d_to_D,
+                  input_mask, x_1_to_d,
+                  intervals_for_func))
     y = tf.concat([y_1_to_d, tf.squeeze(r, -1)], axis=-1)
     return y
 
@@ -335,8 +334,10 @@ class NeuralSplineFlow(tfb.Bijector):
                                                  self.first_d_dims:]
     input_mask = self._data_mask(y_d_to_D, intervals_for_func)
     return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
-                   lambda: self.return_identity(y), lambda : self.return_inverse_result(y_d_to_D,input_mask, y_1_to_d,
-                                        intervals_for_func))
+                   lambda: self.return_identity(y),
+                   lambda: self.return_inverse_result(y_d_to_D, input_mask,
+                                                      y_1_to_d,
+                                                      intervals_for_func))
 
   def _forward_log_det_jacobian(self, x, thetas=None):
     x_1_to_d, x_d_to_D = x[:, :self.first_d_dims], x[:, self.first_d_dims:]
@@ -346,15 +347,16 @@ class NeuralSplineFlow(tfb.Bijector):
     input_mask = self._data_mask(x_d_to_D, intervals_for_func)
 
     return tf.cond(tf.equal(tf.reduce_any(input_mask), tf.constant(False)),
-                lambda: self.return_identity_log_det(), lambda:
-                self.return_result_log_det(x,input_mask, x_1_to_d,
-                                        intervals_for_func, x_d_to_D))
+                   lambda: self.return_identity_log_det(), lambda:
+                   self.return_result_log_det(x, input_mask, x_1_to_d,
+                                              intervals_for_func, x_d_to_D))
+
 
 def make_splines(input_dim, number_of_bins, nn_layers,
                  b_interval, layers, use_bn=False):
   permutation = tf.cast(np.concatenate(
     (np.arange(input_dim / 2, input_dim), np.arange(0, input_dim / 2))),
-                        tf.int32)
+    tf.int32)
   bijector_chain = []
   bijector_chain.append(
     NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
@@ -362,7 +364,7 @@ def make_splines(input_dim, number_of_bins, nn_layers,
                      b_interval=[b_interval for _ in range(input_dim)]))
   if use_bn:
     bijector_chain.append(ActivationNormalization(784))
-  for i in range(layers-1):
+  for i in range(layers - 1):
     bijector_chain.append(tfb.Permute(permutation))
     bijector_chain.append(
       NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,

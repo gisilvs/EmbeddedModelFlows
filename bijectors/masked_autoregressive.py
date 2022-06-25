@@ -1,7 +1,5 @@
-import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
-from tensorflow_probability.python.internal import dtype_util
 from tensorflow_probability.python.internal import prefer_static as ps
 
 tfb = tfp.bijectors

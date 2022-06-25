@@ -1,12 +1,14 @@
+import argparse
 import os
-import shutil
 import pickle
-import tensorflow_datasets as tfds
-import tensorflow as tf
-import tensorflow_probability as tfp
-import matplotlib.pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import tensorflow_probability as tfp
+
+from utils.generative_utils import get_mixture_prior, build_model
+from utils.utils import clear_folder
 
 tfd = tfp.distributions
 tfb = tfp.bijectors
@@ -14,137 +16,32 @@ tfk = tf.keras
 tfkl = tfk.layers
 Root = tfd.JointDistributionCoroutine.Root
 
-n_components = 100
-lambd = 1e-6
-n_dims = 784
-num_epochs = 10000000
+parser = argparse.ArgumentParser(description='Generative experiments')
+parser.add_argument('--model', type=str,
+                    help='maf | maf3| emf_t | emf_m | splines | nsf_emf_t | nsf_emf_m')
+parser.add_argument('--num_epochs', type=int)
+parser.add_argument('--backbone-name', type=str, default='')
+parser.add_argument('--seed', type=int, default=0)
+parser.add_argument('--gpu', type=str, default='0')
+parser.add_argument('--lr', type=float, default=1e-3)
+parser.add_argument('--run_nr', type=int, default=0)
+parser.add_argument('--main_dir', type=str, default='all_results/new_results')
 
-def clear_folder(folder):
-  for filename in os.listdir(folder):
-    file_path = os.path.join(folder, filename)
-    try:
-      if os.path.isfile(file_path) or os.path.islink(file_path):
-        os.unlink(file_path)
-      elif os.path.isdir(file_path):
-        shutil.rmtree(file_path)
-    except Exception as e:
-      print('Failed to delete %s. Reason: %s' % (file_path, e))
+args = parser.parse_args()
 
-def train(model, n_components, name, save_dir):
-  def build_model(model_name, trainable_mixture=True, component_logits=None,
-                  locs=None, scales=None):
-    if trainable_mixture:
-      if model_name in ['maf', 'splines', 'maf3', 'maf_bn', 'splines_bn',
-                        'maf3_bn']:
-        component_logits = tf.convert_to_tensor(
-          [[1. / n_components for _ in range(n_components)] for _ in
-           range(n_dims)])
-        locs = tf.convert_to_tensor(
-          [tf.linspace(-n_components / 2, n_components / 2, n_components) for _
-           in
-           range(n_dims)])
-        scales = tf.convert_to_tensor(
-          [[1. for _ in range(n_components)] for _ in
-           range(n_dims)])
-      else:
-        if model_name in ['np_maf', 'np_splines', 'np_maf_bn', 'np_splines_bn']:
-          loc_range = 15.
-          scale = 3.
-        else:
-          loc_range = 20.
-          scale = 1.
-        component_logits = tf.Variable(
-          [[1. / n_components for _ in range(n_components)] for _ in
-           range(n_dims)], name='component_logits')
-        if 'sandwich' in model_name:
-          locs = tf.Variable(
-            [tf.linspace(-loc_range, loc_range, n_components) for _ in
-             range(n_dims)],
-            name='locs')
-        else:
-          locs = tf.Variable(
-            [tf.linspace(-loc_range, loc_range, n_components) for _ in
-             range(n_dims)],
-            name='locs')
-        scales = tfp.util.TransformedVariable(
-          [[scale for _ in range(n_components)] for _ in
-           range(n_dims)], tfb.Softplus(), name='scales')
 
-    @tfd.JointDistributionCoroutine
-    def prior_structure():
-      yield Root(tfd.Independent(tfd.MixtureSameFamily(
-        mixture_distribution=tfd.Categorical(logits=component_logits),
-        components_distribution=tfd.Normal(loc=locs, scale=scales),
-        name=f"prior"), 1))
+def main():
+  lambd = 1e-6
 
-    prior_matching_bijector = tfb.Chain(
-      surrogate_posteriors._get_prior_matching_bijectors_and_event_dims(
-        prior_structure)[-1])
-    use_bn = False
-    if '_bn' in model_name:
-      use_bn = True
-    if model_name in ['maf', 'maf_bn']:
-      flow_params = {'use_bn': use_bn}
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'maf', flow_params=flow_params)
-
-    elif model_name in ['maf3', 'maf3_bn']:
-      flow_params = {'num_flow_layers': 3,
-                     'use_bn': use_bn}
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure, 'maf',
-                                                         flow_params=flow_params)
-    elif model_name in ['np_maf', 'np_maf_bn']:
-      flow_params = {'use_bn': use_bn}
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         'normalizing_program',
-                                                         'maf',
-                                                         flow_params=flow_params)
-    elif model_name in ['sandwich', 'sandwich_bn']:
-      maf = surrogate_posteriors._sandwich_maf_normalizing_program(
-        prior_structure, use_bn=use_bn)
-
-    elif model_name in ['sandwich_splines', 'sandwich_splines_bn']:
-      flow_params = {
-        'layers': 3,
-        'number_of_bins': 32,
-        'input_dim': 784,
-        'nn_layers': [32, 32],
-        'b_interval': 15,
-        'use_bn': use_bn
-      }
-      maf = surrogate_posteriors._sandwich_splines_normalizing_program(
-        prior_structure, flow_params=flow_params)
-
-    elif model_name in ['splines', 'splines_bn']:
-      flow_params = {
-        'layers': 6,
-        'number_of_bins': 32,
-        'input_dim': 784,
-        'nn_layers': [32,32],
-        'b_interval': 15,
-        'use_bn': use_bn
-      }
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         surrogate_posterior_name='splines',
-                                                         flow_params=flow_params)
-    elif model_name in ['np_splines', 'np_splines_bn']:
-      flow_params = {
-        'layers': 6,
-        'number_of_bins': 32,
-        'input_dim': 784,
-        'nn_layers': [32, 32],
-        'b_interval': 15,
-        'use_bn': use_bn
-      }
-      maf = surrogate_posteriors.get_surrogate_posterior(prior_structure,
-                                                         surrogate_posterior_name='normalizing_program',
-                                                         backnone_name='splines',
-                                                         flow_params=flow_params)
-
-    # maf.log_prob(prior_structure.sample(2))
-
-    return maf, prior_matching_bijector
-
+  def _preprocess(sample):
+    image = tf.cast(sample['image'], tf.float32)
+    image = (image + tf.random.uniform(tf.shape(image), minval=0., maxval=1.,
+                                       seed=42)) / 256.  # dequantize
+    image = lambd + (1 - 2 * lambd) * image
+    image = tfb.Invert(tfb.Sigmoid())(image)  # logit
+    image = tf.reshape(image, [-1])
+    image = prior_matching_bijector(image)
+    return image
 
   @tf.function
   def optimizer_step(net, inputs):
@@ -154,69 +51,83 @@ def train(model, n_components, name, save_dir):
     optimizer.apply_gradients(zip(grads, net.trainable_variables))
     return loss
 
-  @tf.function
-  def eval(model, inputs):
-    return -model.log_prob(inputs)
+  assert args.model in ['maf', 'maf3', 'emf_t', 'emf_m', 'gemf_t', 'gemf_m',
+                        'splines', 'nsf_emf_t', 'nsf_emf_m', 'maf_b']
 
-  def inverse_logits(x):
-    x = tfb.Sigmoid()(x)
-    x = x / (1 - 2 * lambd) - lambd
-    return x
+  os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-  def _preprocess(sample):
-    image = tf.cast(sample['image'], tf.float32)
-    image = (image + tf.random.uniform(tf.shape(image), minval=0., maxval=1.,
-                                       seed=42)) / 256.  # dequantize
-    image = lambd + (1 - 2 * lambd) * image
-    image = tfb.Invert(tfb.Sigmoid())(image) # logit
-    image = tf.reshape(image, [-1])
-    image = prior_matching_bijector(image)
-    return image
+  num_iterations = args.num_iterations
 
-  maf, prior_matching_bijector = build_model(model)
+  main_dir = args.main_dir
+  if not os.path.isdir(main_dir):
+    os.makedirs(main_dir)
+
+  run = args.run_nr
+  flow_dim = 784
+
+  if not os.path.exists(f'{main_dir}/run_{run}/{args.dataset}'):
+    os.makedirs(f'{main_dir}/run_{run}/{args.dataset}')
+
+  save_dir = f'{main_dir}/run_{run}/{args.dataset}'
+
+  if 'emf' in args.model:
+    trainable_mixture = True
+  else:
+    trainable_mixture = False
+  prior_structure = get_mixture_prior(args.model,
+                                      n_components=100,
+                                      n_dims=flow_dim,
+                                      trainable_mixture=trainable_mixture)
+
+  model, prior_matching_bijector = build_model(args.model, prior_structure,
+                                               flow_dim=flow_dim)
+
   data = tfds.load("mnist", split=["train[:50000]", "train[50000:]", "test"])
   train_data, valid_data, test_data = data[0], data[1], data[2]
 
   train_dataset = (train_data
-                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+                   .map(map_func=_preprocess,
+                        num_parallel_calls=tf.data.AUTOTUNE)
                    .cache()
                    .shuffle(int(1e3))
                    .batch(256)
                    .prefetch(tf.data.AUTOTUNE))
 
   valid_dataset = (valid_data
-                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+                   .map(map_func=_preprocess,
+                        num_parallel_calls=tf.data.AUTOTUNE)
                    .cache()
                    .batch(256)
                    .prefetch(tf.data.AUTOTUNE))
 
   test_dataset = (test_data
-                   .map(map_func=_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
-                   .cache()
-                   .batch(256)
-                   .prefetch(tf.data.AUTOTUNE))
+                  .map(map_func=_preprocess,
+                       num_parallel_calls=tf.data.AUTOTUNE)
+                  .cache()
+                  .batch(256)
+                  .prefetch(tf.data.AUTOTUNE))
 
-
-  optimizer = tf.optimizers.Adam(learning_rate=1e-4)
+  lr = args.lr
+  optimizer = tf.optimizers.Adam(learning_rate=lr)
   train_loss_results = []
   valid_loss_results = []
   best_val_loss = None
   epochs_counter = 0
 
-  for epoch in range(num_epochs):
+  for epoch in range(args.num_epochs):
     epoch_loss_avg = tf.keras.metrics.Mean()
     valid_loss_avg = tf.keras.metrics.Mean()
     for x in train_dataset:
       # Optimize the model
-      loss_value = optimizer_step(maf, x)
-      #print(loss_value)
+      loss_value = optimizer_step(model, x)
+      # print(loss_value)
       epoch_loss_avg.update_state(loss_value)
     train_loss_results.append(epoch_loss_avg.result())
     if epoch % 100 == 0:
       print(epoch)
       print(train_loss_results[-1])
     for x in valid_dataset:
-      loss_value = eval(maf, x)
+      loss_value = eval(model, x)
       valid_loss_avg.update_state(loss_value)
     valid_loss_results.append(valid_loss_avg.result())
 
@@ -224,8 +135,8 @@ def train(model, n_components, name, save_dir):
       break
 
     if epoch == 0:
-      checkpoint = tf.train.Checkpoint(weights=maf.trainable_variables)
-      ckpt_dir = f'/tmp/{save_dir}/checkpoints/{name}'
+      checkpoint = tf.train.Checkpoint(weights=model.trainable_variables)
+      ckpt_dir = f'/tmp/{save_dir}/checkpoints/{args.model}'
       if os.path.isdir(ckpt_dir):
         clear_folder(ckpt_dir)
       checkpoint_manager = tf.train.CheckpointManager(checkpoint, ckpt_dir,
@@ -235,85 +146,54 @@ def train(model, n_components, name, save_dir):
     elif best_loss > valid_loss_avg.result():
       test_loss_avg = tf.keras.metrics.Mean()
       for x in test_dataset:
-        loss_value = eval(maf, x)
+        loss_value = eval(model, x)
         test_loss_avg.update_state(loss_value)
       if not tf.math.is_nan(test_loss_avg.result()):
         save_path = checkpoint_manager.save()
       best_loss = valid_loss_avg.result()
       epochs_counter = 0
     else:
-      epochs_counter +=1
+      epochs_counter += 1
       if epochs_counter > 100:
         print(f'Stop at epoch {epoch}')
         break
 
-  new_maf, _ = build_model(model)
-  new_maf.log_prob(x)
-  eval(new_maf, x)
-  new_checkpoint = tf.train.Checkpoint(weights=new_maf.trainable_variables)
+  new_model, _ = build_model(args.model)
+  new_model.log_prob(x)
+  eval(new_model, x)
+  new_checkpoint = tf.train.Checkpoint(weights=new_model.trainable_variables)
 
   new_checkpoint.restore(tf.train.latest_checkpoint(ckpt_dir))
 
-  if os.path.isdir(f'{save_dir}/checkpoints/{name}'):
-    clear_folder(f'{save_dir}/checkpoints/{name}')
+  if os.path.isdir(f'{save_dir}/checkpoints/{args.model}'):
+    clear_folder(f'{save_dir}/checkpoints/{args.model}')
   checkpoint_manager = tf.train.CheckpointManager(new_checkpoint,
-                                                  f'{save_dir}/checkpoints/{name}',
+                                                  f'{save_dir}/checkpoints/{args.model}',
                                                   max_to_keep=20)
   save_path = checkpoint_manager.save()
 
   plt.plot(train_loss_results)
   plt.plot(valid_loss_results)
-  plt.savefig(f'{save_dir}/loss_{name}.png',
+  plt.savefig(f'{save_dir}/loss_{args.model}.png',
               format="png")
   plt.close()
 
   test_loss_avg = tf.keras.metrics.Mean()
 
   for x in test_dataset:
-    loss_value = eval(new_maf, x)
+    loss_value = eval(new_model, x)
     test_loss_avg.update_state(loss_value)
 
-  results = {#'samples': tf.convert_to_tensor(new_maf.sample(1000)),
-             'loss_eval': test_loss_avg.result(),
-             'train_loss': train_loss_results,
-             'valid_loss': valid_loss_results
-             }
+  results = {  # 'samples': tf.convert_to_tensor(new_maf.sample(1000)),
+    'loss_eval': test_loss_avg.result(),
+    'train_loss': train_loss_results,
+    'valid_loss': valid_loss_results
+  }
 
-  with open(f'{save_dir}/{name}.pickle', 'wb') as handle:
+  with open(f'{save_dir}/{args.model}.pickle', 'wb') as handle:
     pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
-  print(f'{name} done!')
+  print(f'{args.model} done!')
 
-models = [
-  #'np_maf',
-  #'maf',
-  #'maf3'
-  #'splines'
-  #'np_splines'
-  'sandwich_bn',
-  #'sandwich_splines_bn',
-  ]
-# 'np_maf',
-# 'sandwich',
-# 'maf',
-# 'maf3']
 
-main_dir = 'mnist'
-if not os.path.isdir(main_dir):
-  os.makedirs(main_dir)
-n_runs = [3]
-
-for run in n_runs:
-  if not os.path.exists(f'{main_dir}/run_{run}'):
-    os.makedirs(f'{main_dir}/run_{run}')
-  for model in models:
-    if model == 'maf' or model == 'maf_bn':
-      train(model, 20, model, save_dir=f'{main_dir}/run_{run}')
-    elif model == 'maf3':
-      name = 'maf3'
-      train(model, 20, name, save_dir=f'{main_dir}/run_{run}')
-    elif model == 'splines' or model == 'splines_bn':
-      train(model, 20, model, save_dir=f'{main_dir}/run_{run}')
-    else:
-      for n_components in [100]:
-        name = f'c{n_components}_{model}'
-        train(model, n_components, name, save_dir=f'{main_dir}/run_{run}')
+if __name__ == '__main__':
+  main()

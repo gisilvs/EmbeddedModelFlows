@@ -8,8 +8,10 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from datasets.toy_data_2d_generator import generate_2d_data
+from datasets.toy_data_hierarchical import iris_generator, digits_generator
+from datasets.toy_data_timeseries import time_series_gen
 from utils.generative_utils import get_mixture_prior, build_model, \
-  get_timeseries_prior
+  get_timeseries_prior, get_hierarchical_prior
 from utils.plot_utils import plot_heatmap_2d
 from utils.utils import clear_folder
 
@@ -35,6 +37,7 @@ parser.add_argument('--main_dir', type=str, default='all_results/new_results')
 
 args = parser.parse_args()
 
+
 def main():
   @tf.function
   def optimizer_step(net, inputs):
@@ -47,7 +50,7 @@ def main():
   assert args.model in ['maf', 'maf3', 'emf_t', 'emf_m', 'gemf_t', 'gemf_m',
                         'splines', 'nsf_emf_t', 'nsf_emf_m', 'maf_b']
   assert args.dataset in ['8gaussians', 'checkerboard', 'mnist', 'brownian',
-                          'ornstein' 'lorenz', 'van_der_pol']
+                          'ornstein' 'lorenz', 'van_der_pol', 'iris', 'digits']
 
   os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
@@ -80,6 +83,23 @@ def main():
 
     flow_dim = series_len * time_step_dim
 
+    dataset = tf.data.Dataset.from_generator(
+      functools.partial(time_series_gen, dataset_name=args.dataset,
+                        batch_size=int(100)),
+      output_types=tf.float32)
+
+  if args.dataset == 'iris':
+    flow_dim = 40
+    dataset = tf.data.Dataset.from_generator(iris_generator,
+                                             output_types=tf.float32).batch(
+      100).prefetch(tf.data.AUTOTUNE)
+
+  if args.dataset == 'digits':
+    flow_dim = 1280
+    dataset = tf.data.Dataset.from_generator(digits_generator,
+                                             output_types=tf.float32).batch(
+      100).prefetch(tf.data.AUTOTUNE)
+
   if not os.path.exists(f'{main_dir}/run_{run}/{args.dataset}'):
     os.makedirs(f'{main_dir}/run_{run}/{args.dataset}')
 
@@ -98,6 +118,9 @@ def main():
   elif args.prior in ['continuity', 'smoothness']:
     prior_structure = get_timeseries_prior(args.model, args.prior,
                                            time_step_dim)
+
+  elif args.prior == 'hierarchical':
+    prior_structure = get_hierarchical_prior(args.dataset)
 
   model, prior_matching_bijector = build_model(args.model, prior_structure,
                                                flow_dim=flow_dim)

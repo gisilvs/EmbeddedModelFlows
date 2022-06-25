@@ -12,6 +12,7 @@ tfp_util = tfp.util
 # Global dict (DANGEROUS)
 residual_fraction_vars = {}
 
+
 def get_residual_fraction(dist):
   dist_name = dist.parameters['name']
   if dist_name not in residual_fraction_vars:

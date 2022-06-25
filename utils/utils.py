@@ -41,6 +41,7 @@ def get_prior_matching_bijectors_and_event_dims(prior):
   return event_shape, flat_event_shape, flat_event_size, int(
     tf.reduce_sum(flat_event_size)), dtype, prior_matching_bijectors
 
+
 def clear_folder(folder):
   for filename in os.listdir(folder):
     file_path = os.path.join(folder, filename)

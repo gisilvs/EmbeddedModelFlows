@@ -4,7 +4,6 @@ from tensorflow_probability.python.internal import samplers
 from tensorflow_probability.python.internal import test_util
 
 import bijector_test_util
-
 from bijectors.splines import NeuralSplineFlow
 
 tfb = tfp.bijectors
@@ -12,20 +11,20 @@ tfd = tfp.distributions
 Root = tfd.JointDistributionCoroutine.Root
 
 
-
-
 @test_util.test_all_tf_execution_regimes
 class NeuralSplinesTests(test_util.TestCase):
 
   def testBijector(self):
     input_dim = 10
-    x = samplers.uniform([3, input_dim], minval=-1., maxval=1., seed=(0,0))
-    bijector = NeuralSplineFlow(input_dim=input_dim, d_dim=int(input_dim / 2) + 1,
+    x = samplers.uniform([3, input_dim], minval=-1., maxval=1., seed=(0, 0))
+    bijector = NeuralSplineFlow(input_dim=input_dim,
+                                d_dim=int(input_dim / 2) + 1,
                                 b_interval=[3 for _ in range(input_dim)])
 
     self.evaluate([v.initializer for v in bijector.trainable_variables])
     self.assertStartsWith(bijector.name, 'neural_spline_flow')
-    self.assertAllClose(tf.convert_to_tensor(x), bijector.inverse(tf.identity(bijector.forward(x))))
+    self.assertAllClose(tf.convert_to_tensor(x),
+                        bijector.inverse(tf.identity(bijector.forward(x))))
     self.assertAllClose(
       bijector.forward_log_det_jacobian(x, event_ndims=1),
       -bijector.inverse_log_det_jacobian(

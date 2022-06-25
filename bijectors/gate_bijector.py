@@ -26,12 +26,12 @@ class GateBijectorForNormal(tfb.Bijector):
 
   def _inverse(self, y):
     y = (y - self.residual_fraction * self.loc) / (
-          self.residual_fraction * self.scale + 1 - self.residual_fraction)
+        self.residual_fraction * self.scale + 1 - self.residual_fraction)
     return y
 
   def _forward_log_det_jacobian(self, x):
     fldj = tf.math.log(
-      self.residual_fraction * (self.scale-1) + 1)
+      self.residual_fraction * (self.scale - 1) + 1)
     return fldj
 
 
@@ -39,7 +39,8 @@ class GateBijector(tfb.Bijector):
   _cache = cache_util.BijectorCacheWithGreedyAttrs(
     forward_name='_augmented_forward', inverse_name='_augmented_inverse')
 
-  def __init__(self, dist_bijector, residual_fraction, validate_args=False, name='gate_bijector'):
+  def __init__(self, dist_bijector, residual_fraction, validate_args=False,
+               name='gate_bijector'):
     self.dist_bijector = dist_bijector
     self.residual_fraction = residual_fraction
     super(GateBijector, self).__init__(
@@ -52,7 +53,6 @@ class GateBijector(tfb.Bijector):
       lambda x, lam: lam * self.dist_bijector(x) + (1 - lam) * x,
       additional_scalar_parameters_requiring_gradients=[
         gated_residual_fraction]))
-
 
   def _augmented_forward(self, x):
     bij = self._gating_bijector(tf.convert_to_tensor(self.residual_fraction))

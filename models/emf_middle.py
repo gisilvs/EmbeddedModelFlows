@@ -3,10 +3,10 @@ import tensorflow_probability as tfp
 from tensorflow_probability.python.internal import prefer_static as ps
 
 from bijectors.actnorm import ActivationNormalization
+from bijectors.gated_structured_layer import GatedStructuredLayer
 from bijectors.masked_autoregressive import build_iaf_bijector
 from bijectors.splines import make_splines
 from bijectors.structured_layer import StructuredLayer
-from bijectors.gated_structured_layer import GatedStructuredLayer
 from utils.utils import get_prior_matching_bijectors_and_event_dims
 
 tfd = tfp.distributions
@@ -14,9 +14,10 @@ tfb = tfp.bijectors
 tfe = tfp.experimental
 tfp_util = tfp.util
 
-#todo: add flag for gated
+
+# todo: add flag for gated
 def emf_middle(prior, num_layers_per_flow=1,
-                use_bn=False, use_gates=False):
+               use_bn=False, use_gates=False):
   event_shape, flat_event_shape, flat_event_size, ndims, dtype, prior_matching_bijectors = get_prior_matching_bijectors_and_event_dims(
     prior)
 
